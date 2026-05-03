@@ -1,0 +1,29 @@
+name: Daily News Bot
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # كل يوم الساعة 6 صباحاً UTC = 9 صباحاً السعودية
+  workflow_dispatch:       # زر تشغيل يدوي من GitHub
+
+jobs:
+  send-news:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run news bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python news_bot.py
