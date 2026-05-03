@@ -6,7 +6,7 @@ import os
 import google.generativeai as genai
 from datetime import datetime
 
-# ===================== إعدادات =====================
+‎# ===================== إعدادات =====================
 
 BOT_TOKEN     = os.environ.get(“BOT_TOKEN”, “”)
 CHAT_ID       = os.environ.get(“CHAT_ID”, “”)
@@ -15,47 +15,47 @@ GEMINI_API_KEY = os.environ.get(“GEMINI_API_KEY”, “”)
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(“gemini-1.5-flash”)
 
-# ===================== مصادر RSS الموثوقة =====================
+‎# ===================== مصادر RSS الموثوقة =====================
 
 RSS_FEEDS = {
-“💰 مال وأسواق”: [
+‎“💰 مال وأسواق”: [
 “https://feeds.reuters.com/reuters/businessNews”,
 “https://feeds.reuters.com/reuters/companyNews”,
 “https://www.cnbc.com/id/10000664/device/rss/rss.html”,
 “https://www.cnbc.com/id/15839069/device/rss/rss.html”,
 ],
-“🏢 أعمال ونتائج شركات”: [
+‎“🏢 أعمال ونتائج شركات”: [
 “https://feeds.reuters.com/reuters/topNews”,
 “https://feeds.ft.com/rss/home/uk”,
 “https://www.cnbc.com/id/10001147/device/rss/rss.html”,
 ],
-“🤖 ذكاء اصطناعي”: [
+‎“🤖 ذكاء اصطناعي”: [
 “https://techcrunch.com/category/artificial-intelligence/feed/”,
 “https://venturebeat.com/category/ai/feed/”,
 “https://www.technologyreview.com/feed/”,
 ],
-“📱 تقنية”: [
+‎“📱 تقنية”: [
 “https://www.theverge.com/rss/index.xml”,
 “https://feeds.arstechnica.com/arstechnica/technology-lab”,
 “https://www.wired.com/feed/rss”,
 ],
-“🌍 أخبار عربية”: [
+‎“🌍 أخبار عربية”: [
 “https://www.aljazeera.net/xmlfeeds/rss2.0.xml?section=business”,
 “https://arabic.rt.com/rss/economy/”,
 ],
 }
 
-# ===================== هاشتاقات =====================
+‎# ===================== هاشتاقات =====================
 
 HASHTAGS = {
-“💰 مال وأسواق”:          “#أسواق_المال #اقتصاد #استثمار #بورصة”,
-“🏢 أعمال ونتائج شركات”:  “#أعمال #شركات #نتائج_مالية #اقتصاد”,
-“🤖 ذكاء اصطناعي”:        “#ذكاء_اصطناعي #AI #تقنية #مستقبل”,
-“📱 تقنية”:                “#تقنية #تكنولوجيا #ابتكار #عالم_التقنية”,
-“🌍 أخبار عربية”:          “#اقتصاد #أعمال #عالم_عربي #أخبار”,
+‎“💰 مال وأسواق”:          “#أسواق_المال #اقتصاد #استثمار #بورصة”,
+‎“🏢 أعمال ونتائج شركات”:  “#أعمال #شركات #نتائج_مالية #اقتصاد”,
+‎“🤖 ذكاء اصطناعي”:        “#ذكاء_اصطناعي #AI #تقنية #مستقبل”,
+‎“📱 تقنية”:                “#تقنية #تكنولوجيا #ابتكار #عالم_التقنية”,
+‎“🌍 أخبار عربية”:          “#اقتصاد #أعمال #عالم_عربي #أخبار”,
 }
 
-# ===================== جلب الأخبار =====================
+‎# ===================== جلب الأخبار =====================
 
 def fetch_news(feed_url, max_items=3):
 try:
@@ -73,28 +73,28 @@ except Exception as e:
 print(f”⚠️ خطأ RSS ({feed_url}): {e}”)
 return []
 
-# ===================== صياغة بالعربي عبر Gemini =====================
+‎# ===================== صياغة بالعربي عبر Gemini =====================
 
 def rewrite_arabic(category, title, summary):
 prompt = f”””
-أنت محرر أخبار محترف متخصص في {category}.
-لديك هذا الخبر:
-العنوان: {title}
-الملخص: {summary}
+‎أنت محرر أخبار محترف متخصص في {category}.
+‎لديك هذا الخبر:
+‎العنوان: {title}
+‎الملخص: {summary}
 
-المطلوب:
+‎المطلوب:
 
-1. اكتب العنوان بالعربي بأسلوب صحفي جذاب (سطر واحد فقط)
-1. اكتب ملخص الخبر بالعربي بأسلوب واضح ومختصر (3 أسطر كحد أقصى)
+‎1. اكتب العنوان بالعربي بأسلوب صحفي جذاب (سطر واحد فقط)
+‎1. اكتب ملخص الخبر بالعربي بأسلوب واضح ومختصر (3 أسطر كحد أقصى)
 
-الشروط:
+‎الشروط:
 
-- لغة عربية فصحى مبسطة
-- لا تضيف هاشتاقات
-- لا تضيف رأيك أو تعليقك
-- ابدأ مباشرة بالعنوان بدون مقدمات
+‎- لغة عربية فصحى مبسطة
+‎- لا تضيف هاشتاقات
+‎- لا تضيف رأيك أو تعليقك
+‎- ابدأ مباشرة بالعنوان بدون مقدمات
 
-الصيغة المطلوبة:
+‎الصيغة المطلوبة:
 TITLE: [العنوان بالعربي]
 BODY: [الملخص بالعربي]
 “””
@@ -113,7 +113,7 @@ except Exception as e:
 print(f”⚠️ خطأ Gemini: {e}”)
 return title, summary
 
-# ===================== تنسيق المنشور =====================
+‎# ===================== تنسيق المنشور =====================
 
 def format_post(category, item):
 title_ar, body_ar = rewrite_arabic(category, item[“title”], item[“summary”])
@@ -129,7 +129,7 @@ post = (
 return post
 ```
 
-# ===================== إرسال لتلقرام =====================
+‎# ===================== إرسال لتلقرام =====================
 
 def send_telegram(message):
 url     = f”https://api.telegram.org/bot{BOT_TOKEN}/sendMessage”
@@ -148,14 +148,14 @@ except Exception as e:
 print(f”⚠️ خطأ إرسال: {e}”)
 return False
 
-# ===================== التشغيل الرئيسي =====================
+‎# ===================== التشغيل الرئيسي =====================
 
 def main():
 today = datetime.now().strftime(”%Y/%m/%d”)
 print(f”🚀 بدء الإرسال - {today}”)
 
 ```
-# ترويسة اليوم
+‎# ترويسة اليوم
 send_telegram(
     f"📰 <b>ملخص أخبار اليوم</b>\n"
     f"📅 {today}\n"
@@ -175,7 +175,7 @@ for category, feeds in RSS_FEEDS.items():
     if not all_items:
         continue
 
-    # عنوان الفئة
+‎    # عنوان الفئة
     send_telegram(f"\n{category}\n━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
 
@@ -186,7 +186,7 @@ for category, feeds in RSS_FEEDS.items():
         print(f"{status} {item['title'][:60]}")
         time.sleep(3)  # تجنب rate limit تلقرام
 
-# ختام
+‎# ختام
 send_telegram("✅ <b>انتهى ملخص اليوم</b>\nشارك ما يناسبك على X 🔁")
 print("✅ اكتمل الإرسال")
 ```
