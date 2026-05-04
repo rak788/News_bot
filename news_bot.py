@@ -74,45 +74,13 @@ def fetch_news(feed_url, max_items=2):
 
 
 def rewrite_arabic(category_label, title, summary):
-    prompt = (
-        "IMPORTANT: Your entire response must be in Arabic only. No English at all.\n\n"
-        "You are a professional Arabic news editor. Translate and rewrite this news into Arabic.\n\n"
-        "Title: " + title + "\n"
-        "Summary: " + summary + "\n\n"
-        "Rules:\n"
-        "- Write ONLY in Arabic\n"
-        "- Title: one line, professional and engaging\n"
-        "- Body: 2-3 lines, clear and concise\n"
-        "- No hashtags, no opinions, no English words\n\n"
-        "Response format (exactly like this):\n"
-        "TITLE: [Arabic title here]\n"
-        "BODY: [Arabic body here]"
-    )
     try:
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        title_ar = ""
-        body_ar = ""
-        for line in text.splitlines():
-            if line.startswith("TITLE:"):
-                title_ar = line.replace("TITLE:", "").strip()
-            elif line.startswith("BODY:"):
-                body_ar = line.replace("BODY:", "").strip()
-        if not title_ar and not body_ar:
-            lines = text.splitlines()
-            title_ar = lines[0] if lines else title
-            body_ar = " ".join(lines[1:]) if len(lines) > 1 else summary
-        if title_ar and all(ord(c) < 128 for c in title_ar.replace(" ", "")):
-            simple = model.generate_content(
-                "Translate to Arabic only, no English:\nTitle: " + title + "\nSummary: " + summary +
-                "\n\nReply format:\nTITLE: ...\nBODY: ..."
-            )
-            for line in simple.text.strip().splitlines():
-                if line.startswith("TITLE:"):
-                    title_ar = line.replace("TITLE:", "").strip()
-                elif line.startswith("BODY:"):
-                    body_ar = line.replace("BODY:", "").strip()
-        return title_ar or title, body_ar or summary
+        prompt_title = "ترجم هذا العنوان الاخباري الى العربية الفصحى في جملة واحدة فقط بدون اي كلام اضافي: " + title
+        prompt_body = "ترجم هذا النص الاخباري الى العربية الفصحى في 2-3 جمل فقط بدون اي كلام اضافي: " + (summary if summary else title)
+        title_ar = model.generate_content(prompt_title).text.strip()
+        body_ar = model.generate_content(prompt_body).text.strip()
+        title_ar = title_ar.splitlines()[0] if title_ar else title
+        return title_ar, body_ar
     except Exception as e:
         print("Gemini error: " + str(e))
         return title, summary
