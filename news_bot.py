@@ -75,18 +75,18 @@ def fetch_news(feed_url, max_items=2):
 
 def rewrite_arabic(category_label, title, summary):
     prompt = (
-        "You are a professional Arabic news editor specialized in " + category_label + ".\n"
-        "News title: " + title + "\n"
-        "News summary: " + summary + "\n\n"
-        "Instructions:\n"
-        "1. Rewrite the title in professional Arabic (one line only)\n"
-        "2. Rewrite the summary in clear simple Arabic (max 3 lines)\n"
-        "3. Use Modern Standard Arabic\n"
-        "4. Do NOT add hashtags or opinions\n"
-        "5. Start directly with no introduction\n\n"
-        "Format:\n"
-        "TITLE: [Arabic title]\n"
-        "BODY: [Arabic summary]"
+        "IMPORTANT: Your entire response must be in Arabic only. No English at all.\n\n"
+        "You are a professional Arabic news editor. Translate and rewrite this news into Arabic.\n\n"
+        "Title: " + title + "\n"
+        "Summary: " + summary + "\n\n"
+        "Rules:\n"
+        "- Write ONLY in Arabic\n"
+        "- Title: one line, professional and engaging\n"
+        "- Body: 2-3 lines, clear and concise\n"
+        "- No hashtags, no opinions, no English words\n\n"
+        "Response format (exactly like this):\n"
+        "TITLE: [Arabic title here]\n"
+        "BODY: [Arabic body here]"
     )
     try:
         response = model.generate_content(prompt)
@@ -98,6 +98,20 @@ def rewrite_arabic(category_label, title, summary):
                 title_ar = line.replace("TITLE:", "").strip()
             elif line.startswith("BODY:"):
                 body_ar = line.replace("BODY:", "").strip()
+        if not title_ar and not body_ar:
+            lines = text.splitlines()
+            title_ar = lines[0] if lines else title
+            body_ar = " ".join(lines[1:]) if len(lines) > 1 else summary
+        if title_ar and all(ord(c) < 128 for c in title_ar.replace(" ", "")):
+            simple = model.generate_content(
+                "Translate to Arabic only, no English:\nTitle: " + title + "\nSummary: " + summary +
+                "\n\nReply format:\nTITLE: ...\nBODY: ..."
+            )
+            for line in simple.text.strip().splitlines():
+                if line.startswith("TITLE:"):
+                    title_ar = line.replace("TITLE:", "").strip()
+                elif line.startswith("BODY:"):
+                    body_ar = line.replace("BODY:", "").strip()
         return title_ar or title, body_ar or summary
     except Exception as e:
         print("Gemini error: " + str(e))
