@@ -10,7 +10,7 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "qwen/qwen-2.5-72b-instruct:free"
+MODEL = "model="google/gemini-2.5-flash:free"
 
 SOURCES = {
     "AI_NEWS": [
