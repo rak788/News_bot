@@ -10,7 +10,6 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-# تم تصحيح السطر بالأسفل بنجاح واستخدام نموذج مجاني فعال
 MODEL = "google/gemini-2.5-flash:free"
 
 SOURCES = {
@@ -116,12 +115,12 @@ def make_news_post(item):
         return None
 
     return (
-        "\U0001f4cc <b>" + title + "</b>\n\n"
+        "📌 <b>" + title + "</b>\n\n"
         + summary + "\n\n"
-        + "\u26a1\ufe0f " + why + "\n\n"
-        + "\U0001f4ac " + question + "\n\n"
-        + "\U0001f517 " + item["link"] + "\n\n"
-        + "#\u0630\u0643\u0627\u0621_\u0627\u0635\u0637\u0646\u0627\u0639\u064a #AI #\u062a\u0642\u0646\u064a\u0629"
+        + "⚡️ " + why + "\n\n"
+        + "💬 " + question + "\n\n"
+        + "🔗 " + item["link"] + "\n\n"
+        + "#ذكاء_اصطناعي #AI #تقنية"
     )
 
 
@@ -158,12 +157,12 @@ def make_trending_post(items):
         return None
 
     return (
-        "\U0001f525 <b>\u062a\u0631\u0646\u062f \u0627\u0644\u064a\u0648\u0645 | " + title + "</b>\n\n"
-        + "\U0001f4ca " + trend + "\n\n"
-        + "\U0001f9e0 <b>\u0628\u0631\u0648\u0645\u0628\u062a \u0627\u0644\u064a\u0648\u0645:</b>\n"
+        "🔥 <b>ترند اليوم | " + title + "</b>\n\n"
+        + "📊 " + trend + "\n\n"
+        + "🧠 <b>برومبت اليوم:</b>\n"
         + "<code>" + prompt_text + "</code>\n\n"
-        + "\U0001f4ac " + question + "\n\n"
-        + "#\u062a\u0631\u0646\u062f #\u0630\u0643\u0627\u0621_\u0627\u0635\u0637\u0646\u0627\u0639\u064a #AI"
+        + "💬 " + question + "\n\n"
+        + "#ترند #ذكاء_اصطناعي #AI"
     )
 
 
@@ -200,12 +199,12 @@ def make_tool_post(items):
         return None
 
     return (
-        "\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u062a \u0627\u0644\u064a\u0648\u0645 \U0001f916</b>\n\n"
-        + "\u2b50 <b>" + name + "</b>\n\n"
-        + "\U0001f3af " + use + "\n\n"
-        + "\U0001f4a1 " + how + "\n\n"
-        + "\U0001f465 " + for_who + "\n\n"
-        + "#\u0623\u062f\u0648\u0627\u062a_AI #ProductHunt #\u0630\u0643\u0627\u0621_\u0627\u0635\u0637\u0646\u0627\u0639\u064a"
+        "🛠️ <b>أداة اليوم 🤖</b>\n\n"
+        + "⭐ <b>" + name + "</b>\n\n"
+        + "🎯 " + use + "\n\n"
+        + "💡 " + how + "\n\n"
+        + "👥 " + for_who + "\n\n"
+        + "#أدوات_AI #ProductHunt #ذكاء_اصطناعي"
     )
 
 
@@ -214,10 +213,10 @@ def main():
     print("Starting - " + today)
 
     header = (
-        "\U0001f916 <b>\u0645\u0644\u062e\u0635 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a \u0648\u0627\u0644\u062a\u0642\u064\u064a\u0629</b>\n"
-        "\U0001f4c5 " + today + "\n"
-        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
-        "\u062a\u0631\u0646\u062f \u2022 \u0623\u062f\u0648\u0627\u062a \u2022 \u0623\u062e\u0628\u0627\u0631"
+        "🤖 <b>ملخص الذكاء الاصطناعي والتقنية</b>\n"
+        "📅 " + today + "\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "ترند • أدوات • أخبار"
     )
     send_telegram(header)
     time.sleep(2)
@@ -229,7 +228,7 @@ def main():
     print("AI: " + str(len(ai_items)) + " | Trending: " + str(len(trending_items)) + " | Tools: " + str(len(tool_items)))
 
     # 1. ترند اليوم + برومبت
-    send_telegram("\U0001f525 <b>\u062a\u0631\u0646\u062f \u0627\u0644\u064a\u0648\u0645</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+    send_telegram("🔥 <b>ترند اليوم</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
     post = make_trending_post(trending_items)
     if post:
@@ -238,7 +237,7 @@ def main():
     time.sleep(5)
 
     # 2. أداة اليوم
-    send_telegram("\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u062a \u0627\u0644\u064a\u0648\u0645</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+    send_telegram("🛠️ <b>أداة اليوم</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
     post = make_tool_post(tool_items)
     if post:
@@ -247,7 +246,7 @@ def main():
     time.sleep(5)
 
     # 3. أبرز أخبار AI
-    send_telegram("\U0001f4f0 <b>\u0623\u0628\u0631\u0632 \u0623\u062e\u0628\u0627\u0631 AI</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+    send_telegram("📰 <b>أبرز أخبار AI</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
     for item in ai_items[:3]:
         post = make_news_post(item)
@@ -257,8 +256,8 @@ def main():
         time.sleep(5)
 
     footer = (
-        "\u2705 <b>\u0627\u0646\u062a\u0647\u0649 \u0645\u0644\u062e\u0635 \u0627\u0644\u064a\u0648\u0645</b>\n"
-        "\u062e\u0630 \u0645\u0627 \u064a\u0646\u0627\u0633\u0628\u0643\u060c \u0623\u0636\u0641 \u0635\u0648\u062a\u0643\u060c \u0627\u0646\u0634\u0631 \U0001f4aa"
+        "✅ <b>انتهى ملخص اليوم</b>\n"
+        "خذ ما يناسبك، أضف صوتك، انشر 💪"
     )
     send_telegram(footer)
     print("Done")
