@@ -10,7 +10,8 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "model="google/gemini-2.5-flash:free"
+# تم تصحيح السطر بالأسفل بنجاح واستخدام نموذج مجاني فعال
+MODEL = "google/gemini-2.5-flash:free"
 
 SOURCES = {
     "AI_NEWS": [
@@ -199,7 +200,7 @@ def make_tool_post(items):
         return None
 
     return (
-        "\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u0629 \u0627\u0644\u064a\u0648\u0645 \U0001f916</b>\n\n"
+        "\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u062a \u0627\u0644\u064a\u0648\u0645 \U0001f916</b>\n\n"
         + "\u2b50 <b>" + name + "</b>\n\n"
         + "\U0001f3af " + use + "\n\n"
         + "\U0001f4a1 " + how + "\n\n"
@@ -213,7 +214,7 @@ def main():
     print("Starting - " + today)
 
     header = (
-        "\U0001f916 <b>\u0645\u0644\u062e\u0635 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a \u0648\u0627\u0644\u062a\u0642\u0646\u064a\u0629</b>\n"
+        "\U0001f916 <b>\u0645\u0644\u062e\u0635 \u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064a \u0648\u0627\u0644\u062a\u0642\u064\u064a\u0629</b>\n"
         "\U0001f4c5 " + today + "\n"
         "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
         "\u062a\u0631\u0646\u062f \u2022 \u0623\u062f\u0648\u0627\u062a \u2022 \u0623\u062e\u0628\u0627\u0631"
@@ -237,7 +238,7 @@ def main():
     time.sleep(5)
 
     # 2. أداة اليوم
-    send_telegram("\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u0629 \u0627\u0644\u064a\u0648\u0645</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
+    send_telegram("\U0001f6e0\ufe0f <b>\u0623\u062f\u0627\u062a \u0627\u0644\u064a\u0648\u0645</b>\n\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501")
     time.sleep(1)
     post = make_tool_post(tool_items)
     if post:
