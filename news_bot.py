@@ -10,7 +10,7 @@ CHAT_ID = os.environ.get("CHAT_ID", "")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "openai/gpt-oss-120b:free"
+MODEL = "google/gemini-2.5-flash:free"
 
 SOURCES = {
     "AI_NEWS": [
@@ -85,6 +85,37 @@ def send_telegram(message):
         print("Telegram error: " + str(e))
         return False
 
+# ==========================================
+# دالة ذكية جديدة لقراءة الأسطر المتعددة
+# ==========================================
+def parse_ai_response(text, keys):
+    data = {key: [] for key in keys}
+    current_key = None
+    
+    for line in text.splitlines():
+        # تنظيف السطر من الماركداون والشرطات
+        clean_line = line.replace("**", "").strip()
+        if clean_line.startswith("- ") or clean_line.startswith("* "):
+            clean_line = clean_line[2:].strip()
+            
+        found_key = False
+        for key in keys:
+            if clean_line.startswith(key + ":"):
+                current_key = key
+                value = clean_line.split(key + ":", 1)[1].strip()
+                if value:
+                    data[current_key].append(value)
+                found_key = True
+                break
+                
+        # إذا كان السطر يتبع لعنوان سابق (متعدد الأسطر)
+        if not found_key and current_key and clean_line:
+            data[current_key].append(clean_line)
+            
+    # دمج الأسطر المتعددة لكل مفتاح
+    return {k: "\n".join(v).strip() for k, v in data.items()}
+# ==========================================
+
 
 def make_news_post(item):
     prompt = (
@@ -100,27 +131,17 @@ def make_news_post(item):
     if not result:
         return None
 
-    title = summary = why = question = ""
-    for line in result.splitlines():
-        # تنظيف السطر من أي نجمات ماركداون قد يضيفها النموذج
-        clean_line = line.replace("**", "").strip()
-        if clean_line.startswith("TITLE:"):
-            title = clean_line.replace("TITLE:", "").strip()
-        elif clean_line.startswith("SUMMARY:"):
-            summary = clean_line.replace("SUMMARY:", "").strip()
-        elif clean_line.startswith("WHY:"):
-            why = clean_line.replace("WHY:", "").strip()
-        elif clean_line.startswith("QUESTION:"):
-            question = clean_line.replace("QUESTION:", "").strip()
+    # استخدام الدالة الذكية
+    parsed = parse_ai_response(result, ["TITLE", "SUMMARY", "WHY", "QUESTION"])
 
-    if not title:
+    if not parsed["TITLE"]:
         return None
 
     return (
-        "📌 <b>" + title + "</b>\n\n"
-        + summary + "\n\n"
-        + "⚡️ " + why + "\n\n"
-        + "💬 " + question + "\n\n"
+        "📌 <b>" + parsed["TITLE"] + "</b>\n\n"
+        + parsed["SUMMARY"] + "\n\n"
+        + "⚡️ " + parsed["WHY"] + "\n\n"
+        + "💬 " + parsed["QUESTION"] + "\n\n"
         + "🔗 " + item["link"] + "\n\n"
         + "#ذكاء_اصطناعي #AI #تقنية"
     )
@@ -144,27 +165,18 @@ def make_trending_post(items):
     if not result:
         return None
 
-    title = trend = prompt_text = question = ""
-    for line in result.splitlines():
-        clean_line = line.replace("**", "").strip()
-        if clean_line.startswith("TITLE:"):
-            title = clean_line.replace("TITLE:", "").strip()
-        elif clean_line.startswith("TREND:"):
-            trend = clean_line.replace("TREND:", "").strip()
-        elif clean_line.startswith("PROMPT:"):
-            prompt_text = clean_line.replace("PROMPT:", "").strip()
-        elif clean_line.startswith("QUESTION:"):
-            question = clean_line.replace("QUESTION:", "").strip()
+    # استخدام الدالة الذكية
+    parsed = parse_ai_response(result, ["TITLE", "TREND", "PROMPT", "QUESTION"])
 
-    if not title:
+    if not parsed["TITLE"]:
         return None
 
     return (
-        "🔥 <b>ترند اليوم | " + title + "</b>\n\n"
-        + "📊 " + trend + "\n\n"
+        "🔥 <b>ترند اليوم | " + parsed["TITLE"] + "</b>\n\n"
+        + "📊 " + parsed["TREND"] + "\n\n"
         + "🧠 <b>برومبت اليوم:</b>\n"
-        + "<code>" + prompt_text + "</code>\n\n"
-        + "💬 " + question + "\n\n"
+        + "<code>" + parsed["PROMPT"] + "</code>\n\n"
+        + "💬 " + parsed["QUESTION"] + "\n\n"
         + "#ترند #ذكاء_اصطناعي #AI"
     )
 
@@ -187,27 +199,18 @@ def make_tool_post(items):
     if not result:
         return None
 
-    name = use = how = for_who = ""
-    for line in result.splitlines():
-        clean_line = line.replace("**", "").strip()
-        if clean_line.startswith("NAME:"):
-            name = clean_line.replace("NAME:", "").strip()
-        elif clean_line.startswith("USE:"):
-            use = clean_line.replace("USE:", "").strip()
-        elif clean_line.startswith("HOW:"):
-            how = clean_line.replace("HOW:", "").strip()
-        elif clean_line.startswith("FOR:"):
-            for_who = clean_line.replace("FOR:", "").strip()
+    # استخدام الدالة الذكية
+    parsed = parse_ai_response(result, ["NAME", "USE", "HOW", "FOR"])
 
-    if not name:
+    if not parsed["NAME"]:
         return None
 
     return (
         "🛠️ <b>أداة اليوم 🤖</b>\n\n"
-        + "⭐ <b>" + name + "</b>\n\n"
-        + "🎯 " + use + "\n\n"
-        + "💡 " + how + "\n\n"
-        + "👥 " + for_who + "\n\n"
+        + "⭐ <b>" + parsed["NAME"] + "</b>\n\n"
+        + "🎯 " + parsed["USE"] + "\n\n"
+        + "💡 " + parsed["HOW"] + "\n\n"
+        + "👥 " + parsed["FOR"] + "\n\n"
         + "#أدوات_AI #ProductHunt #ذكاء_اصطناعي"
     )
 
