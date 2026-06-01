@@ -90,7 +90,7 @@ def make_news_post(item):
     prompt = (
         "أنت محرر أخبار عربي متخصص في الذكاء الاصطناعي والتقنية.\n"
         "الخبر:\nالعنوان: " + item["title"] + "\nالتفاصيل: " + item["summary"] + "\n\n"
-        "اكتب بالفصحى المبسطة فقط:\n"
+        "اكتب بالفصحى المبسطة فقط بدون أي مقدمات:\n"
         "TITLE: عنوان جذاب بالعربية\n"
         "SUMMARY: ملخص الخبر في جملتين\n"
         "WHY: لماذا يهم المستخدم العربي في جملة واحدة\n"
@@ -102,14 +102,16 @@ def make_news_post(item):
 
     title = summary = why = question = ""
     for line in result.splitlines():
-        if line.startswith("TITLE:"):
-            title = line.replace("TITLE:", "").strip()
-        elif line.startswith("SUMMARY:"):
-            summary = line.replace("SUMMARY:", "").strip()
-        elif line.startswith("WHY:"):
-            why = line.replace("WHY:", "").strip()
-        elif line.startswith("QUESTION:"):
-            question = line.replace("QUESTION:", "").strip()
+        # تنظيف السطر من أي نجمات ماركداون قد يضيفها النموذج
+        clean_line = line.replace("**", "").strip()
+        if clean_line.startswith("TITLE:"):
+            title = clean_line.replace("TITLE:", "").strip()
+        elif clean_line.startswith("SUMMARY:"):
+            summary = clean_line.replace("SUMMARY:", "").strip()
+        elif clean_line.startswith("WHY:"):
+            why = clean_line.replace("WHY:", "").strip()
+        elif clean_line.startswith("QUESTION:"):
+            question = clean_line.replace("QUESTION:", "").strip()
 
     if not title:
         return None
@@ -132,7 +134,7 @@ def make_trending_post(items):
         "أنت متخصص في الذكاء الاصطناعي.\n"
         "هذه المواضيع الأكثر تداولاً اليوم على Reddit في مجال AI:\n"
         + titles + "\n\n"
-        "اكتب بالفصحى المبسطة:\n"
+        "اكتب بالفصحى المبسطة بدون أي مقدمات:\n"
         "TITLE: عنوان جذاب عن أبرز ترند اليوم\n"
         "TREND: ما الذي يتحدث عنه الناس في عالم AI اليوم في 3 جمل\n"
         "PROMPT: برومبت عملي مستوحى من هذا الترند جاهز للنسخ\n"
@@ -144,14 +146,15 @@ def make_trending_post(items):
 
     title = trend = prompt_text = question = ""
     for line in result.splitlines():
-        if line.startswith("TITLE:"):
-            title = line.replace("TITLE:", "").strip()
-        elif line.startswith("TREND:"):
-            trend = line.replace("TREND:", "").strip()
-        elif line.startswith("PROMPT:"):
-            prompt_text = line.replace("PROMPT:", "").strip()
-        elif line.startswith("QUESTION:"):
-            question = line.replace("QUESTION:", "").strip()
+        clean_line = line.replace("**", "").strip()
+        if clean_line.startswith("TITLE:"):
+            title = clean_line.replace("TITLE:", "").strip()
+        elif clean_line.startswith("TREND:"):
+            trend = clean_line.replace("TREND:", "").strip()
+        elif clean_line.startswith("PROMPT:"):
+            prompt_text = clean_line.replace("PROMPT:", "").strip()
+        elif clean_line.startswith("QUESTION:"):
+            question = clean_line.replace("QUESTION:", "").strip()
 
     if not title:
         return None
@@ -174,7 +177,7 @@ def make_tool_post(items):
         "أنت خبير في أدوات الذكاء الاصطناعي.\n"
         "هذه أحدث الأدوات على ProductHunt اليوم:\n"
         + titles + "\n\n"
-        "اختر الأداة الأكثر فائدة للمستخدم العربي واكتب بالفصحى المبسطة:\n"
+        "اختر الأداة الأكثر فائدة للمستخدم العربي واكتب بالفصحى المبسطة بدون مقدمات:\n"
         "NAME: اسم الأداة\n"
         "USE: ما تستخدم فيه في جملة واحدة\n"
         "HOW: كيف تبدأ معها في جملتين\n"
@@ -186,14 +189,15 @@ def make_tool_post(items):
 
     name = use = how = for_who = ""
     for line in result.splitlines():
-        if line.startswith("NAME:"):
-            name = line.replace("NAME:", "").strip()
-        elif line.startswith("USE:"):
-            use = line.replace("USE:", "").strip()
-        elif line.startswith("HOW:"):
-            how = line.replace("HOW:", "").strip()
-        elif line.startswith("FOR:"):
-            for_who = line.replace("FOR:", "").strip()
+        clean_line = line.replace("**", "").strip()
+        if clean_line.startswith("NAME:"):
+            name = clean_line.replace("NAME:", "").strip()
+        elif clean_line.startswith("USE:"):
+            use = clean_line.replace("USE:", "").strip()
+        elif clean_line.startswith("HOW:"):
+            how = clean_line.replace("HOW:", "").strip()
+        elif clean_line.startswith("FOR:"):
+            for_who = clean_line.replace("FOR:", "").strip()
 
     if not name:
         return None
