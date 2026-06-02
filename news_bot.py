@@ -71,27 +71,40 @@ def fetch_github_creative_trending(max_items=15):
         print("GitHub Fetch Error: " + str(e))
     return items
 
-def ask_ai(prompt):
-    try:
-        headers = {
-            "Authorization": "Bearer " + OPENROUTER_KEY,
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": MODEL,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 1200,
-            "temperature": 0.6
-        }
-        r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=40)
-        if r.ok:
-            return r.json()["choices"][0]["message"]["content"].strip()
-        else:
-            print("AI error: " + str(r.status_code) + " " + r.text[:200])
-            return ""
-    except Exception as e:
-        print("AI error: " + str(e))
-        return ""
+# ✨ تحديث ذكي: دالة إرسال الطلبات للذكاء الاصطناعي مع ميزة إعادة المحاولة عند ضغط السيرفر
+def ask_ai(prompt, retries=3, delay=4):
+    headers = {
+        "Authorization": "Bearer " + OPENROUTER_KEY,
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": MODEL,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 1200,
+        "temperature": 0.6
+    }
+    
+    for attempt in range(retries):
+        try:
+            r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=40)
+            if r.ok:
+                return r.json()["choices"][0]["message"]["content"].strip()
+            
+            # إذا كان الخطأ بسبب الضغط (503) أو تخطي معدل الطلبات (429)، انتظر وأعد المحاولة
+            if r.status_code in [503, 429]:
+                print(f"OpenRouter busy (Status {r.status_code}). Retrying in {delay}s... (Attempt {attempt+1}/{retries})")
+                time.sleep(delay)
+                continue
+            else:
+                print("AI error: " + str(r.status_code) + " " + r.text[:200])
+                return ""
+        except Exception as e:
+            print(f"AI connection error on attempt {attempt+1}: {str(e)}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                return ""
+    return ""
 
 def send_telegram(message):
     url = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage"
@@ -108,7 +121,6 @@ def send_telegram(message):
         print("Telegram error: " + str(e))
         return False
 
-# 🌟 تحديث جوهري: دالة معالجة ذكية ومقاومة لكافة أشكال الماركداون والرموز
 def parse_ai_response(text, keys):
     data = {key: [] for key in keys}
     current_key = None
@@ -120,7 +132,6 @@ def parse_ai_response(text, keys):
             
         found_key = False
         for key in keys:
-            # تعبير نمطي يبحث عن الكلمة المفتاحية أينما كانت في بداية السطر متبوعة بنقطتين :
             pattern = r'(?i)(?:^|[^a-zA-Z])' + re.escape(key) + r'\s*:\s*(.*)'
             match = re.search(pattern, clean_line)
             if match:
@@ -132,7 +143,6 @@ def parse_ai_response(text, keys):
                 break
                 
         if not found_key and current_key:
-            # تنظيف علامات الماركداون والنجوم الزائدة من الأسطر الفرعية المضافة
             line_clean = re.sub(r'^\*\*|\*\*$|^###\s*|^-\s*|^\*\s*', '', clean_line).strip()
             if line_clean:
                 data[current_key].append(line_clean)
