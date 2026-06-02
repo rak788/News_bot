@@ -3,7 +3,7 @@ import requests
 import re
 import time
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -13,30 +13,29 @@ OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
-# 1. تم زيادة المصادر لتنويع المحتوى
+# تم إزالة أداة alexi والاعتماد على المصادر الرسمية فقط
 SOURCES = {
     "AI_NEWS": [
         "https://techcrunch.com/category/artificial-intelligence/feed/",
         "https://venturebeat.com/category/ai/feed/",
         "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
         "https://www.technologyreview.com/feed/",
-        "https://www.wired.com/feed/category/ai/latest/rss", # مصدر جديد
+        "https://www.wired.com/feed/category/ai/latest/rss",
     ],
-    "TRENDING": [
+    "TRENDING_REDDIT": [
         "https://www.reddit.com/r/ChatGPT/top/.rss?t=day",
-        "https://www.reddit.com/r/artificial/top/.rss?t=day",
         "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
-        "https://www.reddit.com/r/OpenAI/top/.rss?t=day", # مصدر جديد
-        "https://www.reddit.com/r/singularity/top/.rss?t=day", # مصدر جديد
+        "https://www.reddit.com/r/OpenAI/top/.rss?t=day",
+        "https://www.reddit.com/r/singularity/top/.rss?t=day",
     ],
     "TOOLS": [
         "https://www.producthunt.com/feed",
-        "https://hnrss.org/newest?q=AI", # مصدر جديد (Hacker News)
+        "https://hnrss.org/newest?q=AI",
     ],
 }
 
 
-def fetch_feed(urls, max_per_feed=5): # زيادة السحب من كل مصدر
+def fetch_feed(urls, max_per_feed=5):
     items = []
     for url in urls:
         try:
@@ -54,6 +53,31 @@ def fetch_feed(urls, max_per_feed=5): # زيادة السحب من كل مصدر
     return items
 
 
+# دالة جديدة كلياً لجلب ترندات الذكاء الاصطناعي من GitHub API الرسمي
+def fetch_github_trending(max_items=5):
+    items = []
+    try:
+        # جلب المشاريع المستودعة التي تم إنشاؤها أو تحديثها وتخص الذكاء الاصطناعي بلغة بايثون
+        # ومفرزة بحسب عدد النجوم المستلمة مؤخراً لضمان أنها "ترند"
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)"}
+        url = "https://api.github.com/search/repositories?q=topic:ai+language:python&sort=stars&order=desc&per_page=10"
+        
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.ok:
+            repos = r.json().get("items", [])
+            for repo in repos[:max_items]:
+                title = f"GitHub Project: {repo.get('full_name')}"
+                summary = repo.get("description", "No description available.")
+                link = repo.get("html_url")
+                if title and link:
+                    items.append({"title": title, "summary": summary, "link": link})
+        else:
+            print(f"GitHub API Error: {r.status_code}")
+    except Exception as e:
+        print("GitHub Fetch Error: " + str(e))
+    return items
+
+
 def ask_ai(prompt):
     try:
         headers = {
@@ -63,7 +87,7 @@ def ask_ai(prompt):
         payload = {
             "model": MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 800, # زيادة عدد الكلمات المسموح بها للنموذج
+            "max_tokens": 900,
         }
         r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=30)
         if r.ok:
@@ -148,17 +172,16 @@ def make_news_post(item):
 def make_trending_post(items):
     if not items:
         return None
-    # نعطيه أفضل 10 مواضيع بدلاً من 5 ليكون الترند أدق وأشمل
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:10]])
+    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:15]])
     prompt = (
-        "أنت محلل خبير في مجتمعات الذكاء الاصطناعي.\n"
-        "هذه المواضيع الأكثر نقاشاً اليوم على Reddit:\n"
+        "أنت محلل تقني خبير تدمج بين نقاشات المجتمعات والمشاريع البرمجية المفتوحة.\n"
+        "إليك مزيج من المنشورات الأكثر تفاعلاً على Reddit والمشاريع البرمجية الأكثر صعوداً على موقع GitHub الرسمي اليوم:\n"
         + titles + "\n\n"
-        "استخرج أهم 'ترند' أو موضوع يسيطر على النقاشات واكتب بالفصحى وبدون مقدمات:\n"
-        "TITLE: عنوان جذاب للترند\n"
-        "TREND: تحليل دسم ومفصل (فقرة كاملة) لما يتحدث عنه الناس ولماذا أثار اهتمامهم\n"
-        "PROMPT: بناءً على الترند، اكتب 'هندسة أوامر' (Prompt) احترافي، مفصل، وطويل يمكن للمستخدم نسخه واستخدامه في ChatGPT فوراً\n"
-        "QUESTION: سؤال يفتح باب النقاش للمتابعين"
+        "استخرج القاسم المشترك أو أبرز توجه تقني (ترند) يركز عليه المطورون والمستخدمون الآن، واكتب بالفصحى وبدون مقدمات:\n"
+        "TITLE: عنوان مثير يجمع بين توجهات مجتمعات Reddit ومشاريع GitHub الساخنة\n"
+        "TREND: تحليل دسم وعميق للترند (كيف يتفاعل معه الناس في رديت وما هي نوعية المشاريع التي يتم بناؤها على جيتهاب حوله حالياً؟)\n"
+        "PROMPT: اكتب برومبت (Prompt) احترافي، متطور، وطويل مستوحى من هذا الترند لكي يستفيد منه المستخدم عادي أو المطور في نماذج الذكاء الاصطناعي\n"
+        "QUESTION: سؤال تفاعلي ذكي للجمهور"
     )
     result = ask_ai(prompt)
     if not result:
@@ -169,12 +192,13 @@ def make_trending_post(items):
         return None
 
     return (
-        "🔥 <b>نقاشات اليوم | " + parsed["TITLE"] + "</b>\n\n"
-        + "📊 " + parsed["TREND"] + "\n\n"
-        + "🧠 <b>برومبت اليوم (انسخ وجرب):</b>\n"
+        "🔥 <b>ترند اليوم | رديت &amp; جيتهاب</b>\n"
+        "عنوان الترند: <b>" + parsed["TITLE"] + "</b>\n\n"
+        + "📊 <b>التحليل التقني للساحة:</b>\n" + parsed["TREND"] + "\n\n"
+        + "🧠 <b>برومبت اليوم الاحترافي (انسخ وجرب):</b>\n"
         + "<code>" + parsed["PROMPT"] + "</code>\n\n"
         + "💬 " + parsed["QUESTION"] + "\n\n"
-        + "#ترند_AI #هندسة_الأوامر #ChatGPT"
+        + "#ترند_التقنية #GitHub #Reddit #ذكاء_اصطناعي"
     )
 
 
@@ -223,19 +247,24 @@ def main():
     send_telegram(header)
     time.sleep(2)
 
+    # جلب البيانات من المصادر الرسمية فقط
     ai_items = fetch_feed(SOURCES["AI_NEWS"], max_per_feed=5)
-    trending_items = fetch_feed(SOURCES["TRENDING"], max_per_feed=5)
+    reddit_items = fetch_feed(SOURCES["TRENDING_REDDIT"], max_per_feed=4)
+    github_items = fetch_github_trending(max_items=5) # استدعاء الدالة الرسمية والآمنة لـ GitHub
     tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=5)
     
-    # خلط الأخبار عشوائياً حتى لا تكون كلها من مصدر واحد في البداية
+    # دمج ترندات رديت مع ترندات جيتهاب الرسمية في قائمة واحدة للترند
+    trending_combined = reddit_items + github_items
+    random.shuffle(trending_combined)
+    
     random.shuffle(ai_items)
 
-    print("AI: " + str(len(ai_items)) + " | Trending: " + str(len(trending_items)) + " | Tools: " + str(len(tool_items)))
+    print("AI: " + str(len(ai_items)) + " | Trending (Combined): " + str(len(trending_combined)) + " | Tools: " + str(len(tool_items)))
 
-    # 1. ترند اليوم + برومبت
-    send_telegram("🔥 <b>ترند ومجتمعات AI</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    # 1. ترند اليوم المشترك (Reddit + GitHub الرسمي) + برومبت
+    send_telegram("🔥 <b>ترند ومجتمعات AI (رديت &amp; جيتهاب الرسمي)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
-    post = make_trending_post(trending_items)
+    post = make_trending_post(trending_combined)
     if post:
         send_telegram(post)
         print("OK: trending")
@@ -250,7 +279,7 @@ def main():
         print("OK: tool")
     time.sleep(5)
 
-    # 3. أبرز أخبار AI (تمت زيادتها لتصبح 5 أخبار بدلاً من 3)
+    # 3. أبرز أخبار AI
     send_telegram("📰 <b>أهم الأخبار التقنية</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
     for item in ai_items[:5]:
