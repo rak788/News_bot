@@ -14,7 +14,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
 # ========================================================
-# 1. المصادر المفتوحة 
+# 1. المصادر المفتوحة
 # ========================================================
 SOURCES = {
     "ARTICLES": [
@@ -108,30 +108,35 @@ def send_telegram(message):
         print("Telegram error: " + str(e))
         return False
 
-# تم تحسين هذه الدالة لتصبح مرنة جداً في قراءة ردود الذكاء الاصطناعي
+# 🌟 تحديث جوهري: دالة معالجة ذكية ومقاومة لكافة أشكال الماركداون والرموز
 def parse_ai_response(text, keys):
     data = {key: [] for key in keys}
     current_key = None
     
     for line in text.splitlines():
-        clean_line = line.replace("**", "").strip()
-        if clean_line.startswith("- ") or clean_line.startswith("* "):
-            clean_line = clean_line[2:].strip()
+        clean_line = line.strip()
+        if not clean_line:
+            continue
             
         found_key = False
         for key in keys:
-            # البحث بمرونة أكبر عن المفتاح حتى لو تم وضع مسافات إضافية
-            if clean_line.upper().startswith(key + ":") or clean_line.upper().startswith(key + " :"):
+            # تعبير نمطي يبحث عن الكلمة المفتاحية أينما كانت في بداية السطر متبوعة بنقطتين :
+            pattern = r'(?i)(?:^|[^a-zA-Z])' + re.escape(key) + r'\s*:\s*(.*)'
+            match = re.search(pattern, clean_line)
+            if match:
                 current_key = key
-                value = clean_line.split(":", 1)[1].strip()
+                value = match.group(1).strip()
                 if value:
                     data[current_key].append(value)
                 found_key = True
                 break
                 
-        if not found_key and current_key and clean_line:
-            data[current_key].append(clean_line)
-            
+        if not found_key and current_key:
+            # تنظيف علامات الماركداون والنجوم الزائدة من الأسطر الفرعية المضافة
+            line_clean = re.sub(r'^\*\*|\*\*$|^###\s*|^-\s*|^\*\s*', '', clean_line).strip()
+            if line_clean:
+                data[current_key].append(line_clean)
+                
     return {k: "\n".join(v).strip() for k, v in data.items()}
 
 # ========================================================
@@ -141,7 +146,6 @@ def parse_ai_response(text, keys):
 def make_content_idea_post(items):
     if not items:
         return None
-    # تحديد 15 عنصراً فقط كحد أقصى لمنع ارتباك الذكاء الاصطناعي
     titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items[:15]])
     
     prompt = (
@@ -163,6 +167,9 @@ def make_content_idea_post(items):
 
     parsed = parse_ai_response(result, ["IDEA", "WHY", "STEPS", "HOOK"])
     if not parsed["IDEA"]:
+        print("--- DEBUG: Idea Post Parsing Failed. Raw AI output was: ---")
+        print(result)
+        print("---------------------------------------------------------")
         return None
 
     return (
@@ -178,7 +185,6 @@ def make_content_idea_post(items):
 def make_prompt_post(items):
     if not items:
         return None
-    # تحديد 15 عنصراً فقط كحد أقصى لمنع ارتباك الذكاء الاصطناعي
     titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items[:15]])
     
     prompt = (
@@ -200,6 +206,9 @@ def make_prompt_post(items):
 
     parsed = parse_ai_response(result, ["STYLE", "USE", "PROMPT", "TIPS"])
     if not parsed["STYLE"]:
+        print("--- DEBUG: Prompt Post Parsing Failed. Raw AI output was: ---")
+        print(result)
+        print("---------------------------------------------------------")
         return None
 
     return (
@@ -215,7 +224,6 @@ def make_prompt_post(items):
 def make_creator_tool_post(items):
     if not items:
         return None
-    # تحديد 10 عناصر للأدوات
     titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:10]])
     prompt = (
         "أنت مستشار تقني تبحث عن أدوات الذكاء الاصطناعي لرفع إنتاجية صناع المحتوى.\n"
@@ -233,6 +241,9 @@ def make_creator_tool_post(items):
 
     parsed = parse_ai_response(result, ["NAME", "VALUE", "USE_CASE", "FOR"])
     if not parsed["NAME"]:
+        print("--- DEBUG: Tool Post Parsing Failed. Raw AI output was: ---")
+        print(result)
+        print("---------------------------------------------------------")
         return None
 
     return (
@@ -282,7 +293,7 @@ def main():
         print("Success: Generated Elite Content Idea Post")
     else:
         print("Failed to parse Idea Post")
-    time.sleep(8) # زيادة وقت الراحة قليلاً لتجنب حظر API الذكاء الاصطناعي
+    time.sleep(8)
 
     # 2. إرسال منشور البرومبت
     send_telegram("✨ <b>إلهام التصميم الرقمي وهندسة الأوامر</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
