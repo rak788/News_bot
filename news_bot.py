@@ -13,45 +13,70 @@ OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
+# ========================================================
+# 1. المصادر المفتوحة والمضاعفة (تخص صناعة المحتوى فقط)
+# ========================================================
 SOURCES = {
-    # مجتمعات البرومبتات والصور (Reddit + Civitai الرسمي)
-    "PROMPTS": [
+    # مدونات ومقالات إبداعية متخصصة في الـ AI التوليدي (بديل تويتر)
+    "ARTICLES": [
+        "https://the-decoder.com/creative/feed/",  # قسم الإبداع وصناعة الأفلام والصور في ذي ديكودر
+        "https://maginative.com/rss/",              # موقع متخصص بالكامل في التصميم والسينما والذكاء الاصطناعي
+        "https://civitai.com/api/v1/feeds/models"   # خلاصة موقع Civitai الرسمي لأحدث موديلات وبرومبتات الصور
+    ],
+    # مجتمعات رديت الإبداعية (تم رفع الحد الأقصى لجلب كم ضخم من البيانات للعصف الذهني)
+    "REDDIT_COMMUNITIES": [
         "https://www.reddit.com/r/midjourney/top/.rss?t=day",
         "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
-        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
-        "https://civitai.com/api/v1/feeds/models", # تم إضافة رابط Civitai الرسمي والآمن هنا لتقديم أحدث النماذج والبرومبتات
-    ],
-    # ترندات الفيديو وصناعة المحتوى (X/Twitter عبر RSSHub + YouTube + Reddit)
-    "CONTENT_CREATION": [
         "https://www.reddit.com/r/aivideo/top/.rss?t=day",
-        "https://www.youtube.com/feeds/videos.xml?channel_id=UCwOALC0U6D3L2k3vG_o_Tiw",
-        "https://rsshub.app/twitter/keyword/AIVideo", 
-        "https://rsshub.app/twitter/keyword/Midjourney",
+        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day"
     ],
-    # الأدوات التقنية لصناع المحتوى
+    # منصة المنتجات لاستخراج أدوات المونتاج، الصوت، والصناعة المرئية
     "TOOLS": [
-        "https://www.producthunt.com/feed",
-    ],
+        "https://www.producthunt.com/feed"
+    ]
 }
 
-
-def fetch_feed(urls, max_per_feed=5):
+def fetch_feed(urls, max_per_feed=15): # تم رفع الحد إلى 15 منشوراً من كل مصدر لمضاعفة المحتوى
     items = []
     for url in urls:
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (compatible; CreatorBot/1.0)"}
+            # استخدام Header احترافي لتجنب أي حظر من المواقع
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
             feed = feedparser.parse(url, request_headers=headers)
             for entry in feed.entries[:max_per_feed]:
                 title = entry.get("title", "").strip()
                 summary = entry.get("summary", entry.get("description", "")).strip()
                 link = entry.get("link", "").strip()
-                summary = re.sub(r'<[^>]+>', '', summary)[:400].strip()
+                # تنظيف النصوص من وسوم HTML وتقليص حجمها لتغذية الذكاء الاصطناعي بنص نظيف
+                summary = re.sub(r'<[^>]+>', '', summary)[:500].strip()
                 if title and link:
                     items.append({"title": title, "summary": summary, "link": link})
         except Exception as e:
-            print("RSS error: " + str(e))
+            print(f"Error fetching RSS ({url}): {str(e)}")
     return items
 
+# دالة خبيرة لجلب مشاريع GitHub الإبداعية فقط (توليد الصور، الفيديو، تحريك الوجوه، الصوت)
+def fetch_github_creative_trending(max_items=15): # جلب 15 مشروعاً دسمًا
+    items = []
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; CreativeBot/1.0)"}
+        # استعلام ذكي يستهدف مستودعات بايثون الخاصة بالذكاء الاصطناعي التوليدي والصور والفيديو والأعلى نجوماً اليوم
+        url = "https://api.github.com/search/repositories?q=language:python+topic:generative-ai+topic:image-generation+topic:video-generation&sort=stars&order=desc&per_page=20"
+        
+        r = requests.get(url, headers=headers, timeout=15)
+        if r.ok:
+            repos = r.json().get("items", [])
+            for repo in repos[:max_items]:
+                title = f"GitHub Project: {repo.get('full_name')}"
+                summary = repo.get("description", "No description available.")
+                link = repo.get("html_url")
+                if title and link:
+                    items.append({"title": title, "summary": summary, "link": link})
+        else:
+            print(f"GitHub API Error: {r.status_code}")
+    except Exception as e:
+        print("GitHub Fetch Error: " + str(e))
+    return items
 
 def ask_ai(prompt):
     try:
@@ -62,9 +87,10 @@ def ask_ai(prompt):
         payload = {
             "model": MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 900,
+            "max_tokens": 1200, # رفع الحد لضمان صياغة منشورات طويلة ودسمة دون انقطاع النص
+            "temperature": 0.6 # موازنة مثالية بين الدقة التقنية والابتكار الإبداعي
         }
-        r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=30)
+        r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=40)
         if r.ok:
             return r.json()["choices"][0]["message"]["content"].strip()
         else:
@@ -73,7 +99,6 @@ def ask_ai(prompt):
     except Exception as e:
         print("AI error: " + str(e))
         return ""
-
 
 def send_telegram(message):
     url = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage"
@@ -89,7 +114,6 @@ def send_telegram(message):
     except Exception as e:
         print("Telegram error: " + str(e))
         return False
-
 
 def parse_ai_response(text, keys):
     data = {key: [] for key in keys}
@@ -115,53 +139,29 @@ def parse_ai_response(text, keys):
             
     return {k: "\n".join(v).strip() for k, v in data.items()}
 
-
-def make_prompt_post(items):
-    if not items:
-        return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:12]])
-    prompt = (
-        "أنت فنان ومصمم محترف تستخدم أدوات توليد الصور (Midjourney, Stable Diffusion, Civitai).\n"
-        "إليك أحدث الأفكار والنماذج والصور الرائجة اليوم من مجتمعات المصممين ومنصة Civitai:\n"
-        + titles + "\n\n"
-        "استخرج ستايل تصميم ترند اليوم، واكتب بالفصحى المبسطة وبدون مقدمات:\n"
-        "STYLE: اسم الستايل أو فكرة التصميم الحالية الرائجة\n"
-        "USE: كيف يمكن لصانع المحتوى الاستفادة من هذا الستايل لزيادة تفاعل حساباته؟\n"
-        "PROMPT: اكتب برومبت (Prompt) إنجليزي احترافي، تفصيلي، ودقيق جداً جاهز للنسخ لتوليد صورة مذهلة بهذا الستايل\n"
-        "TIPS: نصيحة واحدة سرية للمصممين حول كيفية تعديل هذا البرومبت أو الإعدادات للحصول على أفضل نتيجة"
-    )
-    result = ask_ai(prompt)
-    if not result:
-        return None
-
-    parsed = parse_ai_response(result, ["STYLE", "USE", "PROMPT", "TIPS"])
-    if not parsed["STYLE"]:
-        return None
-
-    return (
-        "✨ <b>برومبت اليوم السحري (الهام من Reddit &amp; Civitai)</b>\n"
-        "🎨 الستايل: <b>" + parsed["STYLE"] + "</b>\n\n"
-        + "🎯 <b>استخداماته:</b>\n" + parsed["USE"] + "\n\n"
-        + "🧠 <b>البرومبت (انسخ وجرب):</b>\n"
-        + "<code>" + parsed["PROMPT"] + "</code>\n\n"
-        + "💡 <b>نصيحة للمحترفين:</b>\n" + parsed["TIPS"] + "\n\n"
-        + "#Midjourney #Civitai #تصميم #ذكاء_اصطناعي"
-    )
-
+# ========================================================
+# 2. هندسة الأوامر (Prompts) الموجهة لصناعة المحتوى الإبداعي
+# ========================================================
 
 def make_content_idea_post(items):
     if not items:
         return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:10]])
+    titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items])
+    
+    # فلترة صارمة لمنع الأخبار الجافة والاستحواذات وتوجيه الذكاء الاصطناعي للتوسيع والابتكار
     prompt = (
-        "أنت خبير في السوشيال ميديا وصناعة الفيديوهات بالذكاء الاصطناعي.\n"
-        "إليك أحدث الترندات من (X/تويتر)، (يوتيوب)، ومجتمع (AI Video):\n"
+        "أنت المخرج الإبداعي وخبير السوشيال ميديا الأول في صناعة وفيديوهات الذكاء الاصطناعي التوليدي.\n"
+        "إليك كمية ضخمة من المقالات والتوجهات وفيديوهات الـ AI الصاعدة اليوم عالمياً:\n"
         + titles + "\n\n"
-        "استنبط فكرة محتوى (فيديو قصير Reel/TikTok) قوية وترند يمكن للمتابع تنفيذها، واكتب بالفصحى وبدون مقدمات:\n"
-        "IDEA: عنوان جذاب للفكرة (مثال: اصنع فيديو وثائقي خيالي بالذكاء الاصطناعي)\n"
-        "WHY: لماذا هذه الفكرة ستجلب مشاهدات وتفاعل اليوم؟\n"
-        "STEPS: خطوات العمل (الأدوات المستخدمة وكيفية ربطها ببعض لصناعة الفيديو)\n"
-        "HOOK: اكتب 'جملة خطافية' (Hook) قوية يبدأ بها صانع المحتوى الفيديو الخاص به لجذب الانتباه"
+        "تعليمات صارمة:\n"
+        "1. تجاهل تماماً واحظر أي أخبار عامة مثل: استحواذ شركات، استثمارات، تمويل، مشاكل قانونية، أو مجرد طرح أسماء نماذج جافة.\n"
+        "2. ركز 100% على (طرق صناعة المحتوى، الفيديوهات التوليدية، الخدع البصرية، الدمج بين الأدوات).\n"
+        "3. البيانات الممررة إليك قد تكون نصوصاً قصيرة، دورك هنا هو الابتكار والتوسيع وتقديم الفكرة بشكل كامل ودسم ومفصل جداً.\n\n"
+        "اكتب باللغة العربية الفصحى المبسطة وبدون مقدمات الهياكل التالية:\n"
+        "IDEA: عنوان ملهم ومبتكر لفكرة فيديو قصير (Reel/TikTok/Short) بناءً على هذه المواد\n"
+        "WHY: تحليل دسم وعميق يوضح لماذا هذا التوجه أو الفكرة ستضرب ترند وتجلب ملايين المشاهدات اليوم\n"
+        "STEPS: دليل عملي تطبيقي ومفصل جداً (خطوة بخطوة) يشرح للمتابع كيف يصنع هذا الفيديو (ما هي الأدوات التوليدية المستخدمة للفيديو والصوت، وكيف يدمجها؟)\n"
+        "HOOK: اكتب 3 خيارات لجمل افتتاحية خطافية (Hooks) قوية ومثيرة ومكتوبة باللهجة البيضاء الجاذبة يبدأ بها الكرييتور الفيديو لمنع المشاهد من التمرير"
     )
     result = ask_ai(prompt)
     if not result:
@@ -172,29 +172,67 @@ def make_content_idea_post(items):
         return None
 
     return (
-        "🎬 <b>فكرة محتوى وترند اليوم</b>\n"
+        "🎬 <b>رادار الترند وفكرة محتوى اليوم</b>\n"
         "🔥 <b>" + parsed["IDEA"] + "</b>\n\n"
-        + "📈 <b>ليش الترند قوي؟</b>\n" + parsed["WHY"] + "\n\n"
-        + "🛠️ <b>كيف تنفذ الفكرة خطوة بخطوة؟</b>\n" + parsed["STEPS"] + "\n\n"
-        + "🎣 <b>جملة البداية (Hook) لفيدوك:</b>\n"
-        + "«" + parsed["HOOK"] + "»\n\n"
-        + "#صناعة_محتوى #AIVideo #Reels"
+        + "📈 <b>لماذا هذا الترند قوي جداً؟</b>\n" + parsed["WHY"] + "\n\n"
+        + "🛠️ <b>دليل الحرفيين (كيف تصنع الفيديو خطوة بخطوة):</b>\n" + parsed["STEPS"] + "\n\n"
+        + "🎣 <b>جمل البداية الخطافية لإمساك المشاهد (اختر منها):</b>\n"
+        + parsed["HOOK"] + "\n\n"
+        + "#صناعة_محتوى #AIVideo #تيك_توك #صناع_المحتوى"
     )
 
+def make_prompt_post(items):
+    if not items:
+        return None
+    titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items])
+    
+    prompt = (
+        "أنت مهندس أوامر (Prompt Engineer) وفنان رقمي محترف متخصص في أدوات الصور (Midjourney, Stable Diffusion, Civitai).\n"
+        "إليك أحدث المنشورات والنماذج الرائجة من مجتمعات التصميم الفني العالمية:\n"
+        + titles + "\n\n"
+        "تعليمات صارمة:\n"
+        "1. ادمج الأفكار الممررة إليك واستخلص منها 'لغة تصميم أو ستايل فني ساخن جداً' ومطلوب في السوشيال ميديا الآن.\n"
+        "2. قم بابتكار وتوسيع برومبت إنجليزي طويل، دقيق، احترافي، ومليء بالتفاصيل (الإضاءة، زاوية الكاميرا، جودة الألوان، الستايل الفني).\n\n"
+        "اكتب بالفصحى وبدون مقدمات الهياكل التالية:\n"
+        "STYLE: اسم الستايل الفني الرائج اليوم والهدف منه\n"
+        "USE: أفكار إبداعية وتطبيقية لصناع المحتوى لاستغلال هذا الستايل في حساباتهم (لجذب المتابعين أو التصميم التجاري)\n"
+        "PROMPT: اكتب البرومبت (Prompt) باللغة الإنجليزية بالكامل داخل سطر واحد، ليكون طويلاً، دقيقاً وجاهزاً تماماً للنسخ\n"
+        "TIPS: نصائح برمجية وسرية لتعديل الكلمات المفتاحية أو الأبعاد أو الإعدادات داخل الأداة للحصول على نتائج مبهرة وخرافية"
+    )
+    result = ask_ai(prompt)
+    if not result:
+        return None
+
+    parsed = parse_ai_response(result, ["STYLE", "USE", "PROMPT", "TIPS"])
+    if not parsed["STYLE"]:
+        return None
+
+    return (
+        "✨ <b•برومبت اليوم السحري (الهام من Reddit &amp; Civitai)</b>\n"
+        "🎨 الستايل الفني: <b>" + parsed["STYLE"] + "</b>\n\n"
+        + "🎯 <b>كيف تستغله في محتواك؟</b>\n" + parsed["USE"] + "\n\n"
+        + "🧠 <b>البرومبت الاحترافي (انسخ وجرب فوراً):</b>\n"
+        + "<code>" + parsed["PROMPT"] + "</code>\n\n"
+        + "💡 <b>أسرار التعديل وهندسة الأمر:</b>\n" + parsed["TIPS"] + "\n\n"
+        + "#Midjourney #Civitai #هندسة_الأوامر #تصميم_AI"
+    )
 
 def make_creator_tool_post(items):
     if not items:
         return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:15]])
+    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items])
     prompt = (
-        "أنت مخرج إبداعي تبحث عن أدوات الذكاء الاصطناعي لمساعدة فريقك.\n"
-        "هذه أحدث الأدوات التقنية:\n"
+        "أنت مستشار تقني تبحث عن أدوات الذكاء الاصطناعي لرفع إنتاجية ومبيعات صناع المحتوى.\n"
+        "إليك أحدث الأدوات المطروحة تقنياً اليوم:\n"
         + titles + "\n\n"
-        "اختر أداة واحدة فقط تفيد 'صناع المحتوى' (سواء للمونتاج، تعديل الصوت، كتابة السكربت، أو التصميم). تجاهل أدوات البرمجة المعقدة. واكتب بالفصحى:\n"
+        "تعليمات صارمة:\n"
+        "1. اختر أداة واحدة فقط تكون مخصصة وحصرياً لـ (المونتاج، تعديل وهندسة الصوت، توليد السكربتات، تحريك الصور، تنظيم محتوى الكرييتورز).\n"
+        "2. احظر وتجاهل تماماً مكاتب البرمجة، لغات البرد، أدوات الـ Devops، أو البرمجيات المعقدة.\n\n"
+        "اكتب بالفصحى وبدون مقدمات:\n"
         "NAME: اسم الأداة\n"
-        "VALUE: كيف ستختصر هذه الأداة الوقت على صانع المحتوى؟\n"
-        "USE_CASE: مثال عملي لاستخدامها في فيديو أو بوست\n"
-        "FOR: من يحتاجها (يوتيوبرز، صناع بودكاست، مصممين..)"
+        "VALUE: كيف ستختصر هذه الأداة ساعات من العمل لصانع المحتوى؟ (اشرح الميزة التنافسية لها بذكاء)\n"
+        "USE_CASE: سيناريو ومثال عملي وحقيقي لكيفية استخدامها في صناعة فيديو أو منشور\n"
+        "FOR: حدد بدقة من هي الفئة المستفيدة (يوتيوبرز، بودكاسترز، مصممو تيك توك..)"
     )
     result = ask_ai(prompt)
     if not result:
@@ -205,71 +243,80 @@ def make_creator_tool_post(items):
         return None
 
     return (
-        "🛠️ <b>أداة الكرييتورز اليوم</b>\n\n"
+        "🛠️ <b>ترسانة الكرييتورز | أداة اليوم 🤖</b>\n\n"
         + "⭐ <b>" + parsed["NAME"] + "</b>\n\n"
-        + "⚡ <b>القيمة المضافة:</b>\n" + parsed["VALUE"] + "\n\n"
-        + "🎯 <b>مثال عملي:</b>\n" + parsed["USE_CASE"] + "\n\n"
-        + "👥 <b>لمن هذه الأداة؟</b>\n" + parsed["FOR"] + "\n\n"
-        + "#أدوات_ذكية #إنتاجية #صناع_المحتوى"
+        + "⚡ <b>السحر والإنتاجية (كيف تختصر وقتك؟):</b>\n" + parsed["VALUE"] + "\n\n"
+        + "🎯 <b>تطبيق سيناريو عملي:</b>\n" + parsed["USE_CASE"] + "\n\n"
+        + "👥 <b>من يحتاج هذه الأداة فوراً؟</b>\n" + parsed["FOR"] + "\n\n"
+        + "#أدوات_المحتوى #إنتاجية #المونتاج_الذكي"
     )
 
-
+# ========================================================
+# 3. دالة التشغيل الرئيسية والتحكم بالبيانات
+# ========================================================
 def main():
     today = datetime.now().strftime("%Y/%m/%d")
-    print("Starting Creator Bot - " + today)
+    print(f"Starting Elite Creator Bot - {today}")
 
     header = (
         "🎨 <b>أكاديمية صناع المحتوى بالذكاء الاصطناعي</b>\n"
         "📅 " + today + "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "✨ برومبتات • 🎬 أفكار محتوى • 🛠️ أدوات"
+        "✨ برومبتات احترافية • 🎬 أفكار فيديوهات وترندات • 🛠️ أدوات الإنتاجية المرئية"
     )
     send_telegram(header)
-    time.sleep(2)
+    time.sleep(3)
 
-    prompt_items = fetch_feed(SOURCES["PROMPTS"], max_per_feed=5)
-    content_items = fetch_feed(SOURCES["CONTENT_CREATION"], max_per_feed=5)
-    tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=10)
+    # أ) جلب كميات ضخمة من البيانات النظيفة والمستقرة
+    article_items = fetch_feed(SOURCES["ARTICLES"], max_per_feed=10)
+    reddit_items = fetch_feed(SOURCES["REDDIT_COMMUNITIES"], max_per_feed=15)
+    github_items = fetch_github_creative_trending(max_items=15)
+    tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=15)
     
-    random.shuffle(prompt_items)
-    random.shuffle(content_items)
+    # ب) الدمج الذكي للبيانات لتغذية الأقسام
+    # لقسم الفيديوهات والترندات: ندمج المقالات المتخصصة الإبداعية + مشاريع جيتهاب الإبداعية + مجتمعات رديت للفيديو والبرومبت
+    content_pool = article_items + github_items + reddit_items
+    random.shuffle(content_pool)
+    
+    # لقسم برومبتات الصور: نركز على رديت وسيفيت آي لضمان خروج لغة تصميمية عبقرية
+    prompt_pool = reddit_items + article_items
+    random.shuffle(prompt_pool)
 
-    print("Prompts (inc. Civitai): " + str(len(prompt_items)) + " | Content Ideas: " + str(len(content_items)) + " | Tools: " + str(len(tool_items)))
+    print(f"Data Pools loaded successfully - Total Content Pool: {len(content_pool)} items.")
 
-    # 1. فكرة المحتوى والفيديو
-    send_telegram("🎬 <b>رادار الترند وأفكار الفيديوهات</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(1)
-    post = make_content_idea_post(content_items)
+    # 1. إرسال منشور فكرة محتوى الفيديو (ترندات دسمة وموسعة)
+    send_telegram("🎬 <b>رادار الترند وأفكار الفيديوهات القصيرة</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    time.sleep(2)
+    post = make_content_idea_post(content_pool)
     if post:
         send_telegram(post)
-        print("OK: Content Idea")
+        print("Success: Generated Elite Content Idea Post")
     time.sleep(5)
 
-    # 2. برومبت التصميم السحري (يدعم Civitai حالياً)
-    send_telegram("✨ <b>إلهام التصميم وهندسة الأوامر</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(1)
-    post = make_prompt_post(prompt_items)
+    # 2. إرسال منشور البرومبت السحري الطويل والجاهز للنسخ
+    send_telegram("✨ <b>إلهام التصميم الرقمي وهندسة الأوامر</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    time.sleep(2)
+    post = make_prompt_post(prompt_pool)
     if post:
         send_telegram(post)
-        print("OK: Prompt")
+        print("Success: Generated Long Prompt Post")
     time.sleep(5)
 
-    # 3. أداة اليوم لصناع المحتوى
-    send_telegram("🛠️ <b>أسلحة الكرييتورز (أدوات)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(1)
+    # 3. إرسال أداة الإنتاجية الإبداعية المفلترة
+    send_telegram("🛠️ <b>أسلحة الكرييتورز (أدوات صناعة الميديا)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    time.sleep(2)
     post = make_creator_tool_post(tool_items)
     if post:
         send_telegram(post)
-        print("OK: Tool")
+        print("Success: Generated Creator Tool Post")
     time.sleep(5)
 
     footer = (
-        "✅ <b>جرعة الإلهام اليومية اكتملت</b>\n"
-        "ابدأ صناعة محتواك الآن، ولا تنسَ مشاركة النشرة 🚀"
+        "✅ <b>جرعة الإلهام اليومية اكتملت بنجاح</b>\n"
+        "المصادر غنية ومحدثة تلقائياً. حان الوقت لتبهر جمهورك؛ ابدأ بصناعة محتواك الآن! 🚀"
     )
     send_telegram(footer)
-    print("Done")
-
+    print("Execution Finished Smoothly.")
 
 if __name__ == "__main__":
     main()
