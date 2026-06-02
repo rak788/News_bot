@@ -3,7 +3,7 @@ import requests
 import re
 import time
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import random
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
@@ -13,24 +13,24 @@ OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
-# تم إزالة أداة alexi والاعتماد على المصادر الرسمية فقط
 SOURCES = {
-    "AI_NEWS": [
-        "https://techcrunch.com/category/artificial-intelligence/feed/",
-        "https://venturebeat.com/category/ai/feed/",
-        "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml",
-        "https://www.technologyreview.com/feed/",
-        "https://www.wired.com/feed/category/ai/latest/rss",
+    # مجتمعات البرومبتات والصور (Reddit + Civitai الرسمي)
+    "PROMPTS": [
+        "https://www.reddit.com/r/midjourney/top/.rss?t=day",
+        "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
+        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
+        "https://civitai.com/api/v1/feeds/models", # تم إضافة رابط Civitai الرسمي والآمن هنا لتقديم أحدث النماذج والبرومبتات
     ],
-    "TRENDING_REDDIT": [
-        "https://www.reddit.com/r/ChatGPT/top/.rss?t=day",
-        "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
-        "https://www.reddit.com/r/OpenAI/top/.rss?t=day",
-        "https://www.reddit.com/r/singularity/top/.rss?t=day",
+    # ترندات الفيديو وصناعة المحتوى (X/Twitter عبر RSSHub + YouTube + Reddit)
+    "CONTENT_CREATION": [
+        "https://www.reddit.com/r/aivideo/top/.rss?t=day",
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UCwOALC0U6D3L2k3vG_o_Tiw",
+        "https://rsshub.app/twitter/keyword/AIVideo", 
+        "https://rsshub.app/twitter/keyword/Midjourney",
     ],
+    # الأدوات التقنية لصناع المحتوى
     "TOOLS": [
         "https://www.producthunt.com/feed",
-        "https://hnrss.org/newest?q=AI",
     ],
 }
 
@@ -39,7 +39,7 @@ def fetch_feed(urls, max_per_feed=5):
     items = []
     for url in urls:
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)"}
+            headers = {"User-Agent": "Mozilla/5.0 (compatible; CreatorBot/1.0)"}
             feed = feedparser.parse(url, request_headers=headers)
             for entry in feed.entries[:max_per_feed]:
                 title = entry.get("title", "").strip()
@@ -50,31 +50,6 @@ def fetch_feed(urls, max_per_feed=5):
                     items.append({"title": title, "summary": summary, "link": link})
         except Exception as e:
             print("RSS error: " + str(e))
-    return items
-
-
-# دالة جديدة كلياً لجلب ترندات الذكاء الاصطناعي من GitHub API الرسمي
-def fetch_github_trending(max_items=5):
-    items = []
-    try:
-        # جلب المشاريع المستودعة التي تم إنشاؤها أو تحديثها وتخص الذكاء الاصطناعي بلغة بايثون
-        # ومفرزة بحسب عدد النجوم المستلمة مؤخراً لضمان أنها "ترند"
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; NewsBot/1.0)"}
-        url = "https://api.github.com/search/repositories?q=topic:ai+language:python&sort=stars&order=desc&per_page=10"
-        
-        r = requests.get(url, headers=headers, timeout=15)
-        if r.ok:
-            repos = r.json().get("items", [])
-            for repo in repos[:max_items]:
-                title = f"GitHub Project: {repo.get('full_name')}"
-                summary = repo.get("description", "No description available.")
-                link = repo.get("html_url")
-                if title and link:
-                    items.append({"title": title, "summary": summary, "link": link})
-        else:
-            print(f"GitHub API Error: {r.status_code}")
-    except Exception as e:
-        print("GitHub Fetch Error: " + str(e))
     return items
 
 
@@ -141,157 +116,156 @@ def parse_ai_response(text, keys):
     return {k: "\n".join(v).strip() for k, v in data.items()}
 
 
-def make_news_post(item):
-    prompt = (
-        "أنت محرر أخبار عربي متخصص ومحترف في الذكاء الاصطناعي.\n"
-        "الخبر:\nالعنوان: " + item["title"] + "\nالتفاصيل: " + item["summary"] + "\n\n"
-        "اكتب بالفصحى المبسطة فقط وبدون مقدمات:\n"
-        "TITLE: عنوان جذاب وقوي بالعربية\n"
-        "SUMMARY: ملخص وافٍ للخبر يشرح التفاصيل المهمة (3-4 جمل)\n"
-        "WHY: تحليل موجز: لماذا هذا الخبر مهم لمستقبل التقنية؟\n"
-        "QUESTION: سؤال عميق للجمهور يشجع على النقاش"
-    )
-    result = ask_ai(prompt)
-    if not result:
-        return None
-
-    parsed = parse_ai_response(result, ["TITLE", "SUMMARY", "WHY", "QUESTION"])
-    if not parsed["TITLE"]:
-        return None
-
-    return (
-        "📌 <b>" + parsed["TITLE"] + "</b>\n\n"
-        + parsed["SUMMARY"] + "\n\n"
-        + "⚡️ <b>الأهمية:</b> " + parsed["WHY"] + "\n\n"
-        + "💬 " + parsed["QUESTION"] + "\n\n"
-        + "🔗 " + item["link"] + "\n\n"
-        + "#أخبار_تقنية #ذكاء_اصطناعي #AI"
-    )
-
-
-def make_trending_post(items):
+def make_prompt_post(items):
     if not items:
         return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:15]])
+    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:12]])
     prompt = (
-        "أنت محلل تقني خبير تدمج بين نقاشات المجتمعات والمشاريع البرمجية المفتوحة.\n"
-        "إليك مزيج من المنشورات الأكثر تفاعلاً على Reddit والمشاريع البرمجية الأكثر صعوداً على موقع GitHub الرسمي اليوم:\n"
+        "أنت فنان ومصمم محترف تستخدم أدوات توليد الصور (Midjourney, Stable Diffusion, Civitai).\n"
+        "إليك أحدث الأفكار والنماذج والصور الرائجة اليوم من مجتمعات المصممين ومنصة Civitai:\n"
         + titles + "\n\n"
-        "استخرج القاسم المشترك أو أبرز توجه تقني (ترند) يركز عليه المطورون والمستخدمون الآن، واكتب بالفصحى وبدون مقدمات:\n"
-        "TITLE: عنوان مثير يجمع بين توجهات مجتمعات Reddit ومشاريع GitHub الساخنة\n"
-        "TREND: تحليل دسم وعميق للترند (كيف يتفاعل معه الناس في رديت وما هي نوعية المشاريع التي يتم بناؤها على جيتهاب حوله حالياً؟)\n"
-        "PROMPT: اكتب برومبت (Prompt) احترافي، متطور، وطويل مستوحى من هذا الترند لكي يستفيد منه المستخدم عادي أو المطور في نماذج الذكاء الاصطناعي\n"
-        "QUESTION: سؤال تفاعلي ذكي للجمهور"
+        "استخرج ستايل تصميم ترند اليوم، واكتب بالفصحى المبسطة وبدون مقدمات:\n"
+        "STYLE: اسم الستايل أو فكرة التصميم الحالية الرائجة\n"
+        "USE: كيف يمكن لصانع المحتوى الاستفادة من هذا الستايل لزيادة تفاعل حساباته؟\n"
+        "PROMPT: اكتب برومبت (Prompt) إنجليزي احترافي، تفصيلي، ودقيق جداً جاهز للنسخ لتوليد صورة مذهلة بهذا الستايل\n"
+        "TIPS: نصيحة واحدة سرية للمصممين حول كيفية تعديل هذا البرومبت أو الإعدادات للحصول على أفضل نتيجة"
     )
     result = ask_ai(prompt)
     if not result:
         return None
 
-    parsed = parse_ai_response(result, ["TITLE", "TREND", "PROMPT", "QUESTION"])
-    if not parsed["TITLE"]:
+    parsed = parse_ai_response(result, ["STYLE", "USE", "PROMPT", "TIPS"])
+    if not parsed["STYLE"]:
         return None
 
     return (
-        "🔥 <b>ترند اليوم | رديت &amp; جيتهاب</b>\n"
-        "عنوان الترند: <b>" + parsed["TITLE"] + "</b>\n\n"
-        + "📊 <b>التحليل التقني للساحة:</b>\n" + parsed["TREND"] + "\n\n"
-        + "🧠 <b>برومبت اليوم الاحترافي (انسخ وجرب):</b>\n"
+        "✨ <b>برومبت اليوم السحري (الهام من Reddit &amp; Civitai)</b>\n"
+        "🎨 الستايل: <b>" + parsed["STYLE"] + "</b>\n\n"
+        + "🎯 <b>استخداماته:</b>\n" + parsed["USE"] + "\n\n"
+        + "🧠 <b>البرومبت (انسخ وجرب):</b>\n"
         + "<code>" + parsed["PROMPT"] + "</code>\n\n"
-        + "💬 " + parsed["QUESTION"] + "\n\n"
-        + "#ترند_التقنية #GitHub #Reddit #ذكاء_اصطناعي"
+        + "💡 <b>نصيحة للمحترفين:</b>\n" + parsed["TIPS"] + "\n\n"
+        + "#Midjourney #Civitai #تصميم #ذكاء_اصطناعي"
     )
 
 
-def make_tool_post(items):
+def make_content_idea_post(items):
     if not items:
         return None
     titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:10]])
     prompt = (
-        "أنت خبير تقني تراجع أدوات الذكاء الاصطناعي.\n"
-        "هذه أحدث الأدوات التقنية اليوم:\n"
+        "أنت خبير في السوشيال ميديا وصناعة الفيديوهات بالذكاء الاصطناعي.\n"
+        "إليك أحدث الترندات من (X/تويتر)، (يوتيوب)، ومجتمع (AI Video):\n"
         + titles + "\n\n"
-        "اختر الأداة الأكثر ابتكاراً والمفيدة للمستخدم العربي واكتب بالفصحى وبدون مقدمات:\n"
-        "NAME: اسم الأداة\n"
-        "USE: شرح مفصل لمميزاتها وكيف تحل مشكلة للمستخدم\n"
-        "HOW: خطوات بسيطة لكيفية البدء في استخدامها\n"
-        "FOR: من هو الجمهور المستفيد منها بشكل أساسي"
+        "استنبط فكرة محتوى (فيديو قصير Reel/TikTok) قوية وترند يمكن للمتابع تنفيذها، واكتب بالفصحى وبدون مقدمات:\n"
+        "IDEA: عنوان جذاب للفكرة (مثال: اصنع فيديو وثائقي خيالي بالذكاء الاصطناعي)\n"
+        "WHY: لماذا هذه الفكرة ستجلب مشاهدات وتفاعل اليوم؟\n"
+        "STEPS: خطوات العمل (الأدوات المستخدمة وكيفية ربطها ببعض لصناعة الفيديو)\n"
+        "HOOK: اكتب 'جملة خطافية' (Hook) قوية يبدأ بها صانع المحتوى الفيديو الخاص به لجذب الانتباه"
     )
     result = ask_ai(prompt)
     if not result:
         return None
 
-    parsed = parse_ai_response(result, ["NAME", "USE", "HOW", "FOR"])
+    parsed = parse_ai_response(result, ["IDEA", "WHY", "STEPS", "HOOK"])
+    if not parsed["IDEA"]:
+        return None
+
+    return (
+        "🎬 <b>فكرة محتوى وترند اليوم</b>\n"
+        "🔥 <b>" + parsed["IDEA"] + "</b>\n\n"
+        + "📈 <b>ليش الترند قوي؟</b>\n" + parsed["WHY"] + "\n\n"
+        + "🛠️ <b>كيف تنفذ الفكرة خطوة بخطوة؟</b>\n" + parsed["STEPS"] + "\n\n"
+        + "🎣 <b>جملة البداية (Hook) لفيدوك:</b>\n"
+        + "«" + parsed["HOOK"] + "»\n\n"
+        + "#صناعة_محتوى #AIVideo #Reels"
+    )
+
+
+def make_creator_tool_post(items):
+    if not items:
+        return None
+    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:15]])
+    prompt = (
+        "أنت مخرج إبداعي تبحث عن أدوات الذكاء الاصطناعي لمساعدة فريقك.\n"
+        "هذه أحدث الأدوات التقنية:\n"
+        + titles + "\n\n"
+        "اختر أداة واحدة فقط تفيد 'صناع المحتوى' (سواء للمونتاج، تعديل الصوت، كتابة السكربت، أو التصميم). تجاهل أدوات البرمجة المعقدة. واكتب بالفصحى:\n"
+        "NAME: اسم الأداة\n"
+        "VALUE: كيف ستختصر هذه الأداة الوقت على صانع المحتوى؟\n"
+        "USE_CASE: مثال عملي لاستخدامها في فيديو أو بوست\n"
+        "FOR: من يحتاجها (يوتيوبرز، صناع بودكاست، مصممين..)"
+    )
+    result = ask_ai(prompt)
+    if not result:
+        return None
+
+    parsed = parse_ai_response(result, ["NAME", "VALUE", "USE_CASE", "FOR"])
     if not parsed["NAME"]:
         return None
 
     return (
-        "🛠️ <b>أداة اليوم 🤖</b>\n\n"
+        "🛠️ <b>أداة الكرييتورز اليوم</b>\n\n"
         + "⭐ <b>" + parsed["NAME"] + "</b>\n\n"
-        + "🎯 <b>ماذا تفعل؟</b>\n" + parsed["USE"] + "\n\n"
-        + "💡 <b>كيف تبدأ؟</b>\n" + parsed["HOW"] + "\n\n"
+        + "⚡ <b>القيمة المضافة:</b>\n" + parsed["VALUE"] + "\n\n"
+        + "🎯 <b>مثال عملي:</b>\n" + parsed["USE_CASE"] + "\n\n"
         + "👥 <b>لمن هذه الأداة؟</b>\n" + parsed["FOR"] + "\n\n"
-        + "#أدوات_AI #إنتاجية #ذكاء_اصطناعي"
+        + "#أدوات_ذكية #إنتاجية #صناع_المحتوى"
     )
 
 
 def main():
     today = datetime.now().strftime("%Y/%m/%d")
-    print("Starting - " + today)
+    print("Starting Creator Bot - " + today)
 
     header = (
-        "🤖 <b>النشرة التقنية الشاملة للذكاء الاصطناعي</b>\n"
+        "🎨 <b>أكاديمية صناع المحتوى بالذكاء الاصطناعي</b>\n"
         "📅 " + today + "\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "🔥 ترند • 🛠️ أدوات • 📰 أخبار"
+        "✨ برومبتات • 🎬 أفكار محتوى • 🛠️ أدوات"
     )
     send_telegram(header)
     time.sleep(2)
 
-    # جلب البيانات من المصادر الرسمية فقط
-    ai_items = fetch_feed(SOURCES["AI_NEWS"], max_per_feed=5)
-    reddit_items = fetch_feed(SOURCES["TRENDING_REDDIT"], max_per_feed=4)
-    github_items = fetch_github_trending(max_items=5) # استدعاء الدالة الرسمية والآمنة لـ GitHub
-    tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=5)
+    prompt_items = fetch_feed(SOURCES["PROMPTS"], max_per_feed=5)
+    content_items = fetch_feed(SOURCES["CONTENT_CREATION"], max_per_feed=5)
+    tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=10)
     
-    # دمج ترندات رديت مع ترندات جيتهاب الرسمية في قائمة واحدة للترند
-    trending_combined = reddit_items + github_items
-    random.shuffle(trending_combined)
-    
-    random.shuffle(ai_items)
+    random.shuffle(prompt_items)
+    random.shuffle(content_items)
 
-    print("AI: " + str(len(ai_items)) + " | Trending (Combined): " + str(len(trending_combined)) + " | Tools: " + str(len(tool_items)))
+    print("Prompts (inc. Civitai): " + str(len(prompt_items)) + " | Content Ideas: " + str(len(content_items)) + " | Tools: " + str(len(tool_items)))
 
-    # 1. ترند اليوم المشترك (Reddit + GitHub الرسمي) + برومبت
-    send_telegram("🔥 <b>ترند ومجتمعات AI (رديت &amp; جيتهاب الرسمي)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    # 1. فكرة المحتوى والفيديو
+    send_telegram("🎬 <b>رادار الترند وأفكار الفيديوهات</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
-    post = make_trending_post(trending_combined)
+    post = make_content_idea_post(content_items)
     if post:
         send_telegram(post)
-        print("OK: trending")
+        print("OK: Content Idea")
     time.sleep(5)
 
-    # 2. أداة اليوم
-    send_telegram("🛠️ <b>اكتشافات وأدوات</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    # 2. برومبت التصميم السحري (يدعم Civitai حالياً)
+    send_telegram("✨ <b>إلهام التصميم وهندسة الأوامر</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
-    post = make_tool_post(tool_items)
+    post = make_prompt_post(prompt_items)
     if post:
         send_telegram(post)
-        print("OK: tool")
+        print("OK: Prompt")
     time.sleep(5)
 
-    # 3. أبرز أخبار AI
-    send_telegram("📰 <b>أهم الأخبار التقنية</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    # 3. أداة اليوم لصناع المحتوى
+    send_telegram("🛠️ <b>أسلحة الكرييتورز (أدوات)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     time.sleep(1)
-    for item in ai_items[:5]:
-        post = make_news_post(item)
-        if post:
-            send_telegram(post)
-            print("OK: " + item["title"][:50])
-        time.sleep(5)
+    post = make_creator_tool_post(tool_items)
+    if post:
+        send_telegram(post)
+        print("OK: Tool")
+    time.sleep(5)
 
     footer = (
-        "✅ <b>نهاية نشرة اليوم</b>\n"
-        "لا تنسَ مشاركة النشرة مع المهتمين بالتقنية 🚀"
+        "✅ <b>جرعة الإلهام اليومية اكتملت</b>\n"
+        "ابدأ صناعة محتواك الآن، ولا تنسَ مشاركة النشرة 🚀"
     )
     send_telegram(footer)
     print("Done")
