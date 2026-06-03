@@ -17,23 +17,18 @@ MODEL = "openai/gpt-oss-120b:free"
 
 # مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
 SOURCES = {
-    "DEEP_TECH": [
-        "[https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day](https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day)",
-        "[https://www.reddit.com/r/MachineLearning/top/.rss?t=day](https://www.reddit.com/r/MachineLearning/top/.rss?t=day)",
-        "[https://buttondown.email/ainews/rss](https://buttondown.email/ainews/rss)"
-    ],
-    "PROMPT_ART": [
-        "[https://www.reddit.com/r/PromptEngineering/top/.rss?t=day](https://www.reddit.com/r/PromptEngineering/top/.rss?t=day)",
-        "[https://www.reddit.com/r/StableDiffusion/top/.rss?t=day](https://www.reddit.com/r/StableDiffusion/top/.rss?t=day)",
-        "[https://www.reddit.com/r/midjourney/top/.rss?t=day](https://www.reddit.com/r/midjourney/top/.rss?t=day)",
-        "[https://civitai.com/api/v1/feeds/models](https://civitai.com/api/v1/feeds/models)"
-    ],
-    "TOOLS_NEWSLETTERS": [
-        "[https://www.producthunt.com/feed](https://www.producthunt.com/feed)",
-        "[https://the-decoder.com/feed/](https://the-decoder.com/feed/)",
-        "[https://maginative.com/rss/](https://maginative.com/rss/)"
-    ]
-}
+  urls = [
+    "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
+    "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
+    "https://buttondown.email/ainews/rss",
+    "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
+    "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
+    "https://www.reddit.com/r/midjourney/top/.rss?t=day",
+    "https://civitai.com/api/v1/feeds/models",
+    "https://www.producthunt.com/feed",
+    "https://the-decoder.com/feed/",
+    "https://maginative.com/rss/"
+]
 
 def fetch_feed(urls, max_per_feed=10):
     items = []
