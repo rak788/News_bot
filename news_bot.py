@@ -1,113 +1,98 @@
 import feedparser
 import requests
-import re
 import time
 import os
-from datetime import datetime
 import random
+from datetime import datetime
 
+# ========================================================
+# 1. إعدادات البوت والبيانات
+# ========================================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-CHAT_ID = os.environ.get("CHAT_ID", "")
+CHAT_ID = "-1003951245443" # تم وضع الـ Chat ID الخاص بقناتك السرية هنا مباشرة
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
-# ========================================================
-# 1. المصادر المفتوحة
-# ========================================================
+# مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
 SOURCES = {
-    "ARTICLES": [
-        "https://the-decoder.com/creative/feed/",
-        "https://maginative.com/rss/",
+    "DEEP_TECH": [
+        "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
+        "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
+        "https://buttondown.email/ainews/rss"
+    ],
+    "PROMPT_ART": [
+        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
+        "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
+        "https://www.reddit.com/r/midjourney/top/.rss?t=day",
         "https://civitai.com/api/v1/feeds/models"
     ],
-    "REDDIT_COMMUNITIES": [
-        "https://www.reddit.com/r/midjourney/top/.rss?t=day",
-        "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
-        "https://www.reddit.com/r/aivideo/top/.rss?t=day",
-        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day"
-    ],
-    "TOOLS": [
-        "https://www.producthunt.com/feed"
+    "TOOLS_NEWSLETTERS": [
+        "https://www.producthunt.com/feed",
+        "https://the-decoder.com/feed/",
+        "https://maginative.com/rss/"
     ]
 }
 
-def fetch_feed(urls, max_per_feed=15):
+def fetch_feed(urls, max_per_feed=10):
     items = []
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     for url in urls:
         try:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
             feed = feedparser.parse(url, request_headers=headers)
             for entry in feed.entries[:max_per_feed]:
                 title = entry.get("title", "").strip()
                 summary = entry.get("summary", entry.get("description", "")).strip()
                 link = entry.get("link", "").strip()
-                summary = re.sub(r'<[^>]+>', '', summary)[:500].strip()
                 if title and link:
-                    items.append({"title": title, "summary": summary, "link": link})
+                    items.append(f"Title: {title}\nDetails: {summary[:800]}")
         except Exception as e:
             print(f"Error fetching RSS ({url}): {str(e)}")
     return items
 
-def fetch_github_creative_trending(max_items=15):
-    items = []
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (compatible; CreativeBot/1.0)"}
-        url = "https://api.github.com/search/repositories?q=language:python+topic:generative-ai+topic:image-generation+topic:video-generation&sort=stars&order=desc&per_page=20"
-        
-        r = requests.get(url, headers=headers, timeout=15)
-        if r.ok:
-            repos = r.json().get("items", [])
-            for repo in repos[:max_items]:
-                title = f"GitHub Project: {repo.get('full_name')}"
-                summary = repo.get("description", "No description available.")
-                link = repo.get("html_url")
-                if title and link:
-                    items.append({"title": title, "summary": summary, "link": link})
-        else:
-            print(f"GitHub API Error: {r.status_code}")
-    except Exception as e:
-        print("GitHub Fetch Error: " + str(e))
-    return items
-
-# ✨ تحديث ذكي: دالة إرسال الطلبات للذكاء الاصطناعي مع ميزة إعادة المحاولة عند ضغط السيرفر
-def ask_ai(prompt, retries=3, delay=4):
+# ========================================================
+# 2. محرك الذكاء الاصطناعي (مع مقاومة الضغط)
+# ========================================================
+def ask_ai(system_prompt, content_data, retries=3, delay=4):
     headers = {
-        "Authorization": "Bearer " + OPENROUTER_KEY,
+        "Authorization": f"Bearer {OPENROUTER_KEY}",
         "Content-Type": "application/json",
     }
+    
+    full_prompt = f"{system_prompt}\n\nهنا المادة الخام (الأخبار والأدوات):\n{content_data}"
+    
     payload = {
         "model": MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1200,
-        "temperature": 0.6
+        "messages": [{"role": "user", "content": full_prompt}],
+        "max_tokens": 1500,
+        "temperature": 0.7
     }
     
     for attempt in range(retries):
         try:
-            r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=40)
+            r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
             if r.ok:
-                return r.json()["choices"][0]["message"]["content"].strip()
+                text = r.json()["choices"][0]["message"]["content"].strip()
+                # تنظيف النص من علامات الماركداون البرمجية إن وجدت ليقبله تليجرام
+                text = text.replace("```html", "").replace("
+```", "").strip()
+                return text
             
-            # إذا كان الخطأ بسبب الضغط (503) أو تخطي معدل الطلبات (429)، انتظر وأعد المحاولة
             if r.status_code in [503, 429]:
-                print(f"OpenRouter busy (Status {r.status_code}). Retrying in {delay}s... (Attempt {attempt+1}/{retries})")
+                print(f"Server busy. Retrying... ({attempt+1}/{retries})")
                 time.sleep(delay)
                 continue
             else:
-                print("AI error: " + str(r.status_code) + " " + r.text[:200])
-                return ""
+                print(f"AI error: {r.status_code}")
+                return None
         except Exception as e:
-            print(f"AI connection error on attempt {attempt+1}: {str(e)}")
-            if attempt < retries - 1:
-                time.sleep(delay)
-            else:
-                return ""
-    return ""
+            print(f"AI connection error: {str(e)}")
+            time.sleep(delay)
+    return None
 
 def send_telegram(message):
-    url = "https://api.telegram.org/bot" + BOT_TOKEN + "/sendMessage"
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
         "text": message,
@@ -116,223 +101,117 @@ def send_telegram(message):
     }
     try:
         r = requests.post(url, json=payload, timeout=15)
-        return r.ok
+        if not r.ok:
+            print(f"Telegram formatting error. Fallback to plain text. Error: {r.text}")
+            payload["parse_mode"] = None # محاولة الإرسال بدون تنسيق إذا فشل الـ HTML
+            requests.post(url, json=payload, timeout=15)
+        return True
     except Exception as e:
-        print("Telegram error: " + str(e))
+        print(f"Telegram error: {str(e)}")
         return False
 
-def parse_ai_response(text, keys):
-    data = {key: [] for key in keys}
-    current_key = None
-    
-    for line in text.splitlines():
-        clean_line = line.strip()
-        if not clean_line:
-            continue
-            
-        found_key = False
-        for key in keys:
-            pattern = r'(?i)(?:^|[^a-zA-Z])' + re.escape(key) + r'\s*:\s*(.*)'
-            match = re.search(pattern, clean_line)
-            if match:
-                current_key = key
-                value = match.group(1).strip()
-                if value:
-                    data[current_key].append(value)
-                found_key = True
-                break
-                
-        if not found_key and current_key:
-            line_clean = re.sub(r'^\*\*|\*\*$|^###\s*|^-\s*|^\*\s*', '', clean_line).strip()
-            if line_clean:
-                data[current_key].append(line_clean)
-                
-    return {k: "\n".join(v).strip() for k, v in data.items()}
-
 # ========================================================
-# 2. هندسة الأوامر (Prompts)
+# 3. قوالب المحتوى الثقيل (هندسة الأوامر المتقدمة)
 # ========================================================
 
-def make_content_idea_post(items):
-    if not items:
-        return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items[:15]])
-    
+def get_workshop_post(data_pool):
     prompt = (
-        "أنت المخرج الإبداعي وخبير السوشيال ميديا الأول في صناعة وفيديوهات الذكاء الاصطناعي التوليدي.\n"
-        "إليك ملخص مقالات وتوجهات وفيديوهات الـ AI الصاعدة اليوم عالمياً:\n"
-        + titles + "\n\n"
-        "تعليمات صارمة:\n"
-        "1. تجاهل أي أخبار عامة وركز 100% على (طرق صناعة المحتوى، الفيديوهات التوليدية، الخدع البصرية، الدمج بين الأدوات).\n"
-        "2. ابتكر ووسع فكرة فيديو بشكل كامل ودسم.\n\n"
-        "يجب أن تبدأ كل فقرة بالكلمة الإنجليزية المحددة تماماً كالتالي:\n"
-        "IDEA: عنوان ملهم ومبتكر لفكرة فيديو قصير (Reel/TikTok/Short)\n"
-        "WHY: تحليل دسم وعميق يوضح لماذا هذه الفكرة ستضرب ترند اليوم\n"
-        "STEPS: دليل عملي (خطوة بخطوة) يشرح للمتابع كيف يصنع هذا الفيديو بالأدوات\n"
-        "HOOK: اكتب 3 خيارات لجمل افتتاحية خطافية قوية لجذب المشاهد"
+        "أنت خبير عربي تقني من النخبة. استخرج أداة أو تقنية واحدة من النص المرفق واكتب عنها 'ورشة عمل مصغرة'.\n"
+        "الجمهور: صناع محتوى ومحترفون عرب يبحثون عن القيمة العملية لا مجرد الأخبار.\n"
+        "يجب أن يكون الناتج النهائي بتنسيق HTML متوافق مع Telegram (استخدم <b> للخط العريض فقط، لا تستخدم **).\n\n"
+        "هيكل المنشور المطلوب:\n"
+        "🛠️ <b>[اسم الأداة أو التقنية المذهلة]</b>\n\n"
+        "💡 <b>الزبدة:</b> (شرح الفكرة في سطرين بأسلوب جذاب).\n\n"
+        "🎯 <b>كيف تستفيد منها عملياً؟ (ورشة سريعة):</b>\n"
+        "1. <b>الخطوة الأولى:</b> (شرح الخطوة)\n"
+        "2. <b>الخطوة الثانية:</b> (شرح الخطوة)\n"
+        "3. <b>الخطوة الثالثة:</b> (شرح الخطوة)\n\n"
+        "💎 <b>نصيحة الخبير:</b> (سر أو تريك إضافي للمحترفين)."
     )
-    result = ask_ai(prompt)
-    if not result:
-        return None
+    return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
-    parsed = parse_ai_response(result, ["IDEA", "WHY", "STEPS", "HOOK"])
-    if not parsed["IDEA"]:
-        print("--- DEBUG: Idea Post Parsing Failed. Raw AI output was: ---")
-        print(result)
-        print("---------------------------------------------------------")
-        return None
-
-    return (
-        "🎬 <b>رادار الترند وفكرة محتوى اليوم</b>\n"
-        "🔥 <b>" + parsed["IDEA"] + "</b>\n\n"
-        + "📈 <b>لماذا هذا الترند قوي جداً؟</b>\n" + parsed["WHY"] + "\n\n"
-        + "🛠️ <b>دليل الحرفيين (كيف تصنع الفيديو):</b>\n" + parsed["STEPS"] + "\n\n"
-        + "🎣 <b>جمل خطافية لإمساك المشاهد:</b>\n"
-        + parsed["HOOK"] + "\n\n"
-        + "#صناعة_محتوى #AIVideo #تيك_توك #صناع_المحتوى"
-    )
-
-def make_prompt_post(items):
-    if not items:
-        return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:200] for x in items[:15]])
-    
+def get_prompt_library_post(data_pool):
     prompt = (
-        "أنت مهندس أوامر (Prompt Engineer) وفنان رقمي محترف متخصص في أدوات الصور.\n"
-        "إليك أحدث المنشورات والنماذج الرائجة من مجتمعات التصميم الفني العالمية:\n"
-        + titles + "\n\n"
-        "تعليمات صارمة:\n"
-        "1. استخلص 'لغة تصميم أو ستايل فني ساخن جداً' ومطلوب في السوشيال ميديا الآن.\n"
-        "2. ابتكر برومبت إنجليزي طويل، دقيق، احترافي جاهز للنسخ.\n\n"
-        "يجب أن تبدأ كل فقرة بالكلمة الإنجليزية المحددة تماماً كالتالي:\n"
-        "STYLE: اسم الستايل الفني الرائج اليوم\n"
-        "USE: أفكار إبداعية لصناع المحتوى لاستغلال هذا الستايل\n"
-        "PROMPT: البرومبت الإنجليزي (ضعه بالكامل في سطر واحد بدون فواصل)\n"
-        "TIPS: نصائح سرية لتعديل الإعدادات للحصول على نتائج مبهرة"
+        "أنت مهندس أوامر (Prompt Engineer) عبقري. استلهم من النص المرفق ستايل تصميم أو فكرة معقدة، واصنع منها برومبت إنجليزي عملاق واحترافي.\n"
+        "يجب أن يكون الناتج بتنسيق HTML لتليجرام. البرومبت الإنجليزي يجب أن يوضع بالكامل داخل علامات <code>البرومبت هنا</code> لكي ينسخه المستخدم بضغطة زر.\n\n"
+        "هيكل المنشور المطلوب:\n"
+        "✨ <b>مكتبة الأوامر | ستايل [اسم الستايل الفني/الفكرة]</b>\n\n"
+        "🧠 <b>عن ماذا نتحدث؟</b> (شرح تأثير هذا البرومبت ولماذا هو مميز).\n\n"
+        "⚙️ <b>البرومبت الاحترافي (اضغط للنسخ):</b>\n"
+        "<code>[هنا تكتب البرومبت الإنجليزي الطويل جداً والمفصل باللغة الإنجليزية فقط]</code>\n\n"
+        "🎨 <b>كيف تعدل عليه؟</b> (اشرح بالعربي الكلمات التي يمكن للمستخدم تغييرها داخل البرومبت مثل الألوان، الإضاءة، الموضوع)."
     )
-    result = ask_ai(prompt)
-    if not result:
-        return None
+    return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
-    parsed = parse_ai_response(result, ["STYLE", "USE", "PROMPT", "TIPS"])
-    if not parsed["STYLE"]:
-        print("--- DEBUG: Prompt Post Parsing Failed. Raw AI output was: ---")
-        print(result)
-        print("---------------------------------------------------------")
-        return None
-
-    return (
-        "✨ <b>برومبت اليوم السحري</b>\n"
-        "🎨 الستايل الفني: <b>" + parsed["STYLE"] + "</b>\n\n"
-        + "🎯 <b>كيف تستغله في محتواك؟</b>\n" + parsed["USE"] + "\n\n"
-        + "🧠 <b>البرومبت الاحترافي (انسخ وجرب فوراً):</b>\n"
-        + "<code>" + parsed["PROMPT"] + "</code>\n\n"
-        + "💡 <b>أسرار التعديل وهندسة الأمر:</b>\n" + parsed["TIPS"] + "\n\n"
-        + "#Midjourney #Civitai #هندسة_الأوامر #تصميم_AI"
-    )
-
-def make_creator_tool_post(items):
-    if not items:
-        return None
-    titles = "\n".join([x["title"] + ": " + x["summary"][:150] for x in items[:10]])
+def get_content_idea_post(data_pool):
     prompt = (
-        "أنت مستشار تقني تبحث عن أدوات الذكاء الاصطناعي لرفع إنتاجية صناع المحتوى.\n"
-        "إليك أحدث الأدوات:\n"
-        + titles + "\n\n"
-        "يجب أن تبدأ كل فقرة بالكلمة الإنجليزية المحددة تماماً كالتالي:\n"
-        "NAME: اسم الأداة\n"
-        "VALUE: كيف تختصر هذه الأداة الوقت على صانع المحتوى؟\n"
-        "USE_CASE: سيناريو عملي لكيفية استخدامها\n"
-        "FOR: من هي الفئة المستفيدة"
+        "أنت مخرج إبداعي خبير في السوشيال ميديا. استخرج ترند أو أداة من النص المرفق، وحولها إلى 'فكرة فيديو فيرال (Reel/TikTok)'.\n"
+        "يجب أن يكون الناتج بتنسيق HTML لتليجرام.\n\n"
+        "هيكل المنشور المطلوب:\n"
+        "🎬 <b>ترند المحتوى | فكرة فيديو ستكسر الخوارزميات</b>\n\n"
+        "🔥 <b>الفكرة:</b> (عنوان الفيديو).\n\n"
+        "🎣 <b>أقوى 3 جمل خطافية (Hooks) لتبدأ بها:</b>\n"
+        "• <b>الخيار 1:</b> ...\n"
+        "• <b>الخيار 2:</b> ...\n"
+        "• <b>الخيار 3:</b> ...\n\n"
+        "📝 <b>السيناريو السريع:</b> (ماذا يعرض في الشاشة وماذا يقول في الثواني الأولى والوسطى والنهاية)."
     )
-    result = ask_ai(prompt)
-    if not result:
-        return None
+    return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
-    parsed = parse_ai_response(result, ["NAME", "VALUE", "USE_CASE", "FOR"])
-    if not parsed["NAME"]:
-        print("--- DEBUG: Tool Post Parsing Failed. Raw AI output was: ---")
-        print(result)
-        print("---------------------------------------------------------")
-        return None
-
-    return (
-        "🛠️ <b>ترسانة الكرييتورز | أداة اليوم 🤖</b>\n\n"
-        + "⭐ <b>" + parsed["NAME"] + "</b>\n\n"
-        + "⚡ <b>السحر والإنتاجية (كيف تختصر وقتك؟):</b>\n" + parsed["VALUE"] + "\n\n"
-        + "🎯 <b>تطبيق سيناريو عملي:</b>\n" + parsed["USE_CASE"] + "\n\n"
-        + "👥 <b>من يحتاج هذه الأداة فوراً؟</b>\n" + parsed["FOR"] + "\n\n"
-        + "#أدوات_المحتوى #إنتاجية #صناع_المحتوى"
+def get_deep_news_post(data_pool):
+    prompt = (
+        "أنت محلل تقني عميق. استخرج أهم خبر تحديث ذكاء اصطناعي من النص، واكتب عنه تحليلاً قصيراً يهم المحترفين.\n"
+        "يجب أن يكون الناتج بتنسيق HTML لتليجرام.\n\n"
+        "هيكل المنشور المطلوب:\n"
+        "📰 <b>رادار الذكاء الاصطناعي | [عنوان الخبر الصادم أو المهم]</b>\n\n"
+        "🔍 <b>ماذا حدث بالضبط؟</b> (شرح الخبر بدون حشو).\n\n"
+        "⚠️ <b>لماذا هذا مهم لك؟ (So What?):</b> (كيف سيؤثر هذا الخبر على عمل صناع المحتوى والمصممين، هل يهدد وظائفهم أم يسهلها؟)."
     )
+    return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
 # ========================================================
-# 3. دالة التشغيل
+# 4. دالة التشغيل الرئيسية
 # ========================================================
 def main():
-    today = datetime.now().strftime("%Y/%m/%d")
-    print(f"Starting Elite Creator Bot - {today}")
-
-    header = (
-        "🎨 <b>أكاديمية صناع المحتوى بالذكاء الاصطناعي</b>\n"
-        "📅 " + today + "\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "✨ برومبتات احترافية • 🎬 أفكار فيديوهات وترندات • 🛠️ أدوات الإنتاجية المرئية"
-    )
-    send_telegram(header)
-    time.sleep(3)
-
-    article_items = fetch_feed(SOURCES["ARTICLES"], max_per_feed=10)
-    reddit_items = fetch_feed(SOURCES["REDDIT_COMMUNITIES"], max_per_feed=15)
-    github_items = fetch_github_creative_trending(max_items=15)
-    tool_items = fetch_feed(SOURCES["TOOLS"], max_per_feed=15)
+    print("Starting Elite AI Content Curator...")
     
-    content_pool = article_items + github_items + reddit_items
-    random.shuffle(content_pool)
+    send_telegram(f"🔄 <b>جاري سحب وطبخ المحتوى الثقيل ليوم:</b> {datetime.now().strftime('%Y-%m-%d')}\n<i>الرجاء الانتظار قليلاً...</i>")
     
-    prompt_pool = reddit_items + article_items
-    random.shuffle(prompt_pool)
+    # سحب المادة الخام
+    deep_tech_data = fetch_feed(SOURCES["DEEP_TECH"])
+    prompt_data = fetch_feed(SOURCES["PROMPT_ART"])
+    tools_data = fetch_feed(SOURCES["TOOLS_NEWSLETTERS"])
+    
+    all_data = deep_tech_data + prompt_data + tools_data
+    if not all_data:
+        send_telegram("❌ فشل في جلب البيانات من المصادر اليوم.")
+        return
 
-    print(f"Data Pools loaded successfully. Content: {len(content_pool)}, Prompts: {len(prompt_pool)}")
+    # إنشاء 8 مسودات دسمة للقناة السرية
+    tasks = [
+        ("ورشة عمل 1", get_workshop_post, tools_data),
+        ("ورشة عمل 2", get_workshop_post, all_data),
+        ("مكتبة أوامر 1", get_prompt_library_post, prompt_data),
+        ("مكتبة أوامر 2", get_prompt_library_post, prompt_data),
+        ("فكرة محتوى 1", get_content_idea_post, deep_tech_data + tools_data),
+        ("فكرة محتوى 2", get_content_idea_post, all_data),
+        ("تحليل خبر 1", get_deep_news_post, deep_tech_data),
+        ("تحليل خبر 2", get_deep_news_post, tools_data),
+    ]
 
-    # 1. إرسال منشور فكرة محتوى الفيديو
-    send_telegram("🎬 <b>رادار الترند وأفكار الفيديوهات القصيرة</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(2)
-    post = make_content_idea_post(content_pool)
-    if post:
-        send_telegram(post)
-        print("Success: Generated Elite Content Idea Post")
-    else:
-        print("Failed to parse Idea Post")
-    time.sleep(8)
+    success_count = 0
+    for name, func, data in tasks:
+        print(f"Generating: {name}...")
+        post = func(data)
+        if post:
+            # إضافة فاصل بصري واسم القسم
+            final_post = f"📌 <b>[ مسودة: {name} ]</b>\n━━━━━━━━━━━━━━━━━━━━\n\n{post}"
+            if send_telegram(final_post):
+                success_count += 1
+        time.sleep(10) # راحة للسيرفر لتجنب الحظر
 
-    # 2. إرسال منشور البرومبت
-    send_telegram("✨ <b>إلهام التصميم الرقمي وهندسة الأوامر</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(2)
-    post = make_prompt_post(prompt_pool)
-    if post:
-        send_telegram(post)
-        print("Success: Generated Long Prompt Post")
-    else:
-         print("Failed to parse Prompt Post")
-    time.sleep(8)
-
-    # 3. إرسال أداة الإنتاجية
-    send_telegram("🛠️ <b>أسلحة الكرييتورز (أدوات صناعة الميديا)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    time.sleep(2)
-    post = make_creator_tool_post(tool_items)
-    if post:
-        send_telegram(post)
-        print("Success: Generated Creator Tool Post")
-    else:
-         print("Failed to parse Tool Post")
-    time.sleep(5)
-
-    footer = (
-        "✅ <b>جرعة الإلهام اليومية اكتملت بنجاح</b>\n"
-        "المصادر غنية ومحدثة تلقائياً. حان الوقت لتبهر جمهورك؛ ابدأ بصناعة محتواك الآن! 🚀"
-    )
-    send_telegram(footer)
-    print("Execution Finished Smoothly.")
+    send_telegram(f"✅ <b>تم الانتهاء!</b>\nتم تجهيز <b>{success_count}</b> منشورات دسمة. تصفحها، اختر الأفضل، وانسخه لقناتك العامة لتفجير التفاعل! 🚀")
+    print("Done generating all elite content.")
 
 if __name__ == "__main__":
     main()
