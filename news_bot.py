@@ -92,24 +92,23 @@ def ask_ai(system_prompt, content_data, retries=3, delay=4):
             time.sleep(delay)
     return None
 
-def send_telegram(message):
-   url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+def send_telegram(text):
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    CHAT_ID = os.getenv("CHAT_ID")
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    
     payload = {
         "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
+        "text": text,
+        "parse_mode": "Markdown"
     }
+    
     try:
-        r = requests.post(url, json=payload, timeout=15)
-        if not r.ok:
-            print(f"Telegram formatting error. Fallback to plain text. Error: {r.text}")
-            payload["parse_mode"] = None
-            requests.post(url, json=payload, timeout=15)
-        return True
+        response = requests.post(url, json=payload)
+        if response.status_code != 200:
+            print(f"Telegram error: {response.text}")
     except Exception as e:
-        print(f"Telegram error: {str(e)}")
-        return False
+        print(f"Telegram error: {e}")
 
 # ========================================================
 # 3. قوالب المحتوى الثقيل (هندسة الأوامر المتقدمة)
