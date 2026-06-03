@@ -93,7 +93,7 @@ def ask_ai(system_prompt, content_data, retries=3, delay=4):
     return None
 
 def send_telegram(message):
-    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){BOT_TOKEN}/sendMessage"
+   url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
         "text": message,
