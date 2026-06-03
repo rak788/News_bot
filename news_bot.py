@@ -12,26 +12,30 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 CHAT_ID = "-1003951245443"  # القناة السرية الخاصة بك
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
-OPENROUTER_URL = "[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)"
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "openai/gpt-oss-120b:free"
 
-# مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
-
-urls = [
-    "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
-    "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
-    "https://buttondown.email/ainews/rss",
-    "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
-    "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
-    "https://www.reddit.com/r/midjourney/top/.rss?t=day",
-    "https://civitai.com/api/v1/feeds/models",
-    "https://www.producthunt.com/feed",
-    "https://the-decoder.com/feed/",
-    "https://maginative.com/rss/"
-]
-
-
-
+# ========================================================
+# تصنيف مصادر النخبة (بدلاً من القائمة العشوائية)
+# ========================================================
+SOURCES = {
+    "DEEP_TECH": [
+        "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
+        "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
+        "https://the-decoder.com/feed/"
+    ],
+    "PROMPT_ART": [
+        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
+        "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
+        "https://www.reddit.com/r/midjourney/top/.rss?t=day",
+        "https://civitai.com/api/v1/feeds/models"
+    ],
+    "TOOLS_NEWSLETTERS": [
+        "https://buttondown.email/ainews/rss",
+        "https://www.producthunt.com/feed",
+        "https://maginative.com/rss/"
+    ]
+}
 
 def fetch_feed(urls, max_per_feed=10):
     items = []
@@ -112,22 +116,25 @@ def ask_ai(system_prompt, content_data, retries=3, delay=4):
     return None
 
 def send_telegram(text):
-    BOT_TOKEN = os.getenv("BOT_TOKEN")
-    CHAT_ID = os.getenv("CHAT_ID")
+    # نعتمد على المتغيرات العامة الموجودة في بداية الملف لضمان استقرار الإرسال
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
     payload = {
         "chat_id": CHAT_ID,
         "text": text,
-        "parse_mode": "Markdown"
+        "parse_mode": "HTML" # تم التعديل إلى HTML ليتوافق مع تلقين الذكاء الاصطناعي
     }
     
     try:
         response = requests.post(url, json=payload)
-        if response.status_code != 200:
+        if response.status_code == 200:
+            return True
+        else:
             print(f"Telegram error: {response.text}")
+            return False
     except Exception as e:
         print(f"Telegram error: {e}")
+        return False
 
 # ========================================================
 # 3. قوالب المحتوى الثقيل (هندسة الأوامر المتقدمة)
@@ -147,6 +154,7 @@ def get_workshop_post(data_pool):
         "3. <b>الخطوة الثالثة:</b> (شرح الخطوة)\n\n"
         "💎 <b>نصيحة الخبير:</b> (سر أو تريك إضافي للمحترفين)."
     )
+    if not data_pool: return None
     return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
 def get_prompt_library_post(data_pool):
@@ -160,6 +168,7 @@ def get_prompt_library_post(data_pool):
         "<code>[هنا تكتب البرومبت الإنجليزي الطويل جداً والمفصل باللغة الإنجليزية فقط]</code>\n\n"
         "🎨 <b>كيف تعدل عليه؟</b> (اشرح بالعربي الكلمات التي يمكن للمستخدم تغييرها داخل البرومبت مثل الألوان، الإضاءة، الموضوع)."
     )
+    if not data_pool: return None
     return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
 def get_content_idea_post(data_pool):
@@ -175,6 +184,7 @@ def get_content_idea_post(data_pool):
         "• <b>الخيار 3:</b> ...\n\n"
         "📝 <b>السيناريو السريع:</b> (ماذا يعرض في الشاشة وماذا يقول في الثواني الأولى والوسطى والنهاية)."
     )
+    if not data_pool: return None
     return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
 def get_deep_news_post(data_pool):
@@ -186,6 +196,7 @@ def get_deep_news_post(data_pool):
         "🔍 <b>ماذا حدث بالضبط؟</b> (شرح الخبر بدون حشو).\n\n"
         "⚠️ <b>لماذا هذا مهم لك؟ (So What?):</b> (كيف سيؤثر هذا الخبر على عمل صناع المحتوى والمصممين، هل يهدد وظائفهم أم يسهلها؟)."
     )
+    if not data_pool: return None
     return ask_ai(prompt, "\n\n".join(random.sample(data_pool, min(5, len(data_pool)))))
 
 # ========================================================
