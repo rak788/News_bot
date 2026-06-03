@@ -16,7 +16,7 @@ OPENROUTER_URL = "[https://openrouter.ai/api/v1/chat/completions](https://openro
 MODEL = "openai/gpt-oss-120b:free"
 
 # مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
-SOURCES = {
+
 urls = [
     "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
     "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
@@ -29,7 +29,7 @@ urls = [
     "https://the-decoder.com/feed/",
     "https://maginative.com/rss/"
 ]
-}
+
 
 
 
