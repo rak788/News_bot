@@ -13,7 +13,7 @@ CHAT_ID = "-1003951245443"  # القناة السرية الخاصة بك
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "openai/gpt-oss-120b:free"
+MODEL = "meta-llama/llama-3-8b-instruct:free"
 
 # ========================================================
 # تصنيف مصادر النخبة (بدلاً من القائمة العشوائية)
@@ -237,8 +237,7 @@ def main():
             final_post = f"📌 <b>[ مسودة: {name} ]</b>\n━━━━━━━━━━━━━━━━━━━━\n\n{post}"
             if send_telegram(final_post):
                 success_count += 1
-        time.sleep(10)
-
+        time.sleep(60) # راحة 60 ثانية لتجنب حظر سيرفرات الذكاء الاصطناعي
     send_telegram(f"✅ <b>تم الانتهاء!</b>\nتم تجهيز <b>{success_count}</b> منشورات دسمة في مطبخك السري بنجاح!")
     print("Done generating all elite content.")
 
