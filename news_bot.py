@@ -17,7 +17,7 @@ MODEL = "openai/gpt-oss-120b:free"
 
 # مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
 SOURCES = {
-  urls = [
+urls = [
     "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
     "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
     "https://buttondown.email/ainews/rss",
@@ -29,6 +29,9 @@ SOURCES = {
     "https://the-decoder.com/feed/",
     "https://maginative.com/rss/"
 ]
+}
+
+
 
 def fetch_feed(urls, max_per_feed=10):
     items = []
