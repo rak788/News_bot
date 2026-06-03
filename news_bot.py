@@ -9,29 +9,29 @@ from datetime import datetime
 # 1. إعدادات البوت والبيانات
 # ========================================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-CHAT_ID = "-1003951245443" # تم وضع الـ Chat ID الخاص بقناتك السرية هنا مباشرة
+CHAT_ID = "-1003951245443"  # القناة السرية الخاصة بك
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_URL = "[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)"
 MODEL = "openai/gpt-oss-120b:free"
 
 # مصادر النخبة (Newsletters & Reddit) للحصول على المحتوى الثقيل
 SOURCES = {
     "DEEP_TECH": [
-        "https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day",
-        "https://www.reddit.com/r/MachineLearning/top/.rss?t=day",
-        "https://buttondown.email/ainews/rss"
+        "[https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day](https://www.reddit.com/r/LocalLLaMA/top/.rss?t=day)",
+        "[https://www.reddit.com/r/MachineLearning/top/.rss?t=day](https://www.reddit.com/r/MachineLearning/top/.rss?t=day)",
+        "[https://buttondown.email/ainews/rss](https://buttondown.email/ainews/rss)"
     ],
     "PROMPT_ART": [
-        "https://www.reddit.com/r/PromptEngineering/top/.rss?t=day",
-        "https://www.reddit.com/r/StableDiffusion/top/.rss?t=day",
-        "https://www.reddit.com/r/midjourney/top/.rss?t=day",
-        "https://civitai.com/api/v1/feeds/models"
+        "[https://www.reddit.com/r/PromptEngineering/top/.rss?t=day](https://www.reddit.com/r/PromptEngineering/top/.rss?t=day)",
+        "[https://www.reddit.com/r/StableDiffusion/top/.rss?t=day](https://www.reddit.com/r/StableDiffusion/top/.rss?t=day)",
+        "[https://www.reddit.com/r/midjourney/top/.rss?t=day](https://www.reddit.com/r/midjourney/top/.rss?t=day)",
+        "[https://civitai.com/api/v1/feeds/models](https://civitai.com/api/v1/feeds/models)"
     ],
     "TOOLS_NEWSLETTERS": [
-        "https://www.producthunt.com/feed",
-        "https://the-decoder.com/feed/",
-        "https://maginative.com/rss/"
+        "[https://www.producthunt.com/feed](https://www.producthunt.com/feed)",
+        "[https://the-decoder.com/feed/](https://the-decoder.com/feed/)",
+        "[https://maginative.com/rss/](https://maginative.com/rss/)"
     ]
 }
 
@@ -74,9 +74,10 @@ def ask_ai(system_prompt, content_data, retries=3, delay=4):
             r = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=45)
             if r.ok:
                 text = r.json()["choices"][0]["message"]["content"].strip()
-                # تنظيف النص من علامات الماركداون البرمجية إن وجدت ليقبله تليجرام
-                text = text.replace("```html", "").replace("
-```", "").strip()
+                
+                # حيلة آمنة لتنظيف الماركداون دون تخريب النص أثناء النسخ
+                md_tag = "`" * 3
+                text = text.replace(f"{md_tag}html", "").replace(md_tag, "").strip()
                 return text
             
             if r.status_code in [503, 429]:
@@ -92,7 +93,7 @@ def ask_ai(system_prompt, content_data, retries=3, delay=4):
     return None
 
 def send_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    url = f"[https://api.telegram.org/bot](https://api.telegram.org/bot){BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
         "text": message,
@@ -103,7 +104,7 @@ def send_telegram(message):
         r = requests.post(url, json=payload, timeout=15)
         if not r.ok:
             print(f"Telegram formatting error. Fallback to plain text. Error: {r.text}")
-            payload["parse_mode"] = None # محاولة الإرسال بدون تنسيق إذا فشل الـ HTML
+            payload["parse_mode"] = None
             requests.post(url, json=payload, timeout=15)
         return True
     except Exception as e:
@@ -204,13 +205,12 @@ def main():
         print(f"Generating: {name}...")
         post = func(data)
         if post:
-            # إضافة فاصل بصري واسم القسم
             final_post = f"📌 <b>[ مسودة: {name} ]</b>\n━━━━━━━━━━━━━━━━━━━━\n\n{post}"
             if send_telegram(final_post):
                 success_count += 1
-        time.sleep(10) # راحة للسيرفر لتجنب الحظر
+        time.sleep(10)
 
-    send_telegram(f"✅ <b>تم الانتهاء!</b>\nتم تجهيز <b>{success_count}</b> منشورات دسمة. تصفحها، اختر الأفضل، وانسخه لقناتك العامة لتفجير التفاعل! 🚀")
+    send_telegram(f"✅ <b>تم الانتهاء!</b>\nتم تجهيز <b>{success_count}</b> منشورات دسمة في مطبخك السري بنجاح!")
     print("Done generating all elite content.")
 
 if __name__ == "__main__":
