@@ -37,18 +37,39 @@ SOURCES = {
 
 def fetch_feed(urls, max_per_feed=10):
     items = []
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    # تحسين الـ User-Agent لتقليل احتمالية الحظر
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    
     for url in urls:
         try:
+            print(f"🔄 جاري محاولة جلب البيانات من: {url}")
             feed = feedparser.parse(url, request_headers=headers)
+            
+            # كشف أخطاء الـ HTTP (مثل الحظر 403 أو 503)
+            status = feed.get("status")
+            if status and status != 200:
+                print(f"⚠️ فشل جلب الرابط! رمز الاستجابة (HTTP Status): {status} - قد يكون الموقع يحظر خوادم GitHub.")
+                continue
+            
+            # التحقق مما إذا كانت القائمة فارغة
+            if not feed.entries:
+                print(f"ℹ️ لم يتم العثور على مقالات في هذا الرابط، أو أن الهيكل غير مدعوم.")
+                continue
+
+            print(f"✅ تم جلب {len(feed.entries)} مقالة بنجاح من المصدر.")
+            
             for entry in feed.entries[:max_per_feed]:
                 title = entry.get("title", "").strip()
                 summary = entry.get("summary", entry.get("description", "")).strip()
                 link = entry.get("link", "").strip()
                 if title and link:
                     items.append(f"Title: {title}\nDetails: {summary[:800]}")
+                    
         except Exception as e:
-            print(f"Error fetching RSS ({url}): {str(e)}")
+            print(f"❌ خطأ غير متوقع أثناء معالجة RSS ({url}): {str(e)}")
+            
     return items
 
 # ========================================================
