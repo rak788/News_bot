@@ -61,17 +61,29 @@ def main():
     for name, url in FEEDS.items():
         print(f"🔍 جاري فحص: {name}...")
         try:
-            response = requests.get(url, headers=HEADERS, timeout=15)
-            feed = feedparser.parse(response.content)
-            if not feed.entries:
-                print(f"⚠️ لم يتم العثور على مقالات في {name}.")
+            response = requests.get(url, headers=HEADERS, timeout=20)
+            
+            # --- إضافة للتصحيح (Debugging) ---
+            if response.status_code != 200:
+                print(f"❌ الموقع رفض الاتصال بـ Status Code: {response.status_code}")
                 continue
+            
+            feed = feedparser.parse(response.content)
+            
+            if not feed.entries:
+                print(f"⚠️ الموقع استجاب (200)، ولكن لم يجد مقالات. محتوى الرد (أول 100 حرف):")
+                print(response.text[:100])
+                continue
+            # ---------------------------------
             
             entry = feed.entries[0]
             article_id = entry.get("id", entry.link)
-            if article_id in history: continue
+            if article_id in history: 
+                print(f"✅ لا توجد مقالات جديدة في {name}.")
+                continue
             
             print(f"📰 ترجمة: {entry.title}")
+            # ... باقي الكود كما هو (ترجمة وإرسال) ...
             content = clean_html(entry.get("description", "") or entry.get("content", [{"value": ""}])[0]["value"])
             translated = translate_article(content, name)
             
@@ -79,7 +91,7 @@ def main():
                 send_to_telegram(f"🌟 **أخبار {name}** 🌟\n\n{translated}\n\n🔗 {entry.link}")
                 save_history(article_id)
         except Exception as e:
-            print(f"❌ خطأ: {e}")
+            print(f"❌ خطأ تقني: {e}")
 
 if __name__ == "__main__":
     main()
