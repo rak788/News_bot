@@ -12,8 +12,8 @@ MODEL = "nvidia/nemotron-3-super-120b-a12b:free" # النموذج المستقر
 
 # روابط RSS للنشرات البريدية
 FEEDS = {
-    "The Rundown AI": "https://www.therundown.ai/rss.xml",
-    "AI Valley": "https://www.theaivalley.com/rss.xml"
+    "The Rundown AI": "https://www.therundown.ai/feed",
+    "AI Valley": "https://www.theaivalley.com/feed"
 }
 
 HISTORY_FILE = "articles_history.txt"
@@ -109,13 +109,30 @@ def send_to_telegram(text):
 def main():
     history = load_history()
     
-    for source_name, feed_url in FEEDS.items():
-        print(f"🔍 جاري فحص: {source_name}...")
-        feed = feedparser.parse(feed_url)
+  import feedparser
+import requests  # تأكد من إضافة هذه المكتبة في أعلى الملف
+
+# ... (باقي المتغيرات والأكواد) ...
+
+# هوية المتصفح المزيفة لتخطي حماية Cloudflare
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+}
+
+for name, url in FEEDS.items():
+    print(f"🔍 جاري فحص: {name}...")
+    try:
+        # هنا التعديل: نستخدم requests مع الهوية المزيفة لقراءة الرابط أولاً
+        response = requests.get(url, headers=HEADERS, timeout=15)
+        # ثم نمرر المحتوى إلى feedparser
+        feed = feedparser.parse(response.content)
         
         if not feed.entries:
-            print(f"⚠️ لم يتم العثور على مقالات في {source_name} (قد يكون الرابط متوقفاً حالياً).")
+            print(f"⚠️ لم يتم العثور على مقالات في {name}.")
             continue
+            
+        # ... (من هنا يكمل كودك بشكل طبيعي: اختيار المقال، الترجمة، الإرسال) ...
             
         # نأخذ أحدث مقال فقط في كل عملية تشغيل
         latest_entry = feed.entries[0]
