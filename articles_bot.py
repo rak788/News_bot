@@ -40,22 +40,33 @@ def clean_html(raw_html):
     return ' '.join(clean_text.split())
 
 def translate_article(text, source_name):
+    """إرسال النص إلى OpenRouter لترجمته ونقله بدقة"""
     prompt = (
-        f"هذه نشرة بريدية تقنية من {source_name}. "
-        "أريدك أن تترجم جميع الأخبار والأدوات المذكورة فيها بالكامل إلى اللغة العربية بأسلوب صحفي تقني جذاب. "
-        "شروط هامة: احذف الإعلانات، المقدمات الترحيبية، واستخدم نقاط وتنسيق واضح.\n\n"
-        f"النص الأصلي:\n{text[:6000]}"
+        f"أنت مترجم تقني محترف. قم بترجمة النشرة التالية من {source_name} إلى العربية بأسلوب صحفي تقني جذاب.\n"
+        "شروط الالتزام بالدقة:\n"
+        "1. لا تقم بالتلخيص، بل انقل جميع الأخبار، الأدوات، والتفاصيل المذكورة بالكامل.\n"
+        "2. حافظ على جميع الروابط، الأسماء التقنية، والأرقام كما هي.\n"
+        "3. يمكنك حذف الإعلانات فقط (Sponsors)، لكن لا تحذف أي محتوى إخباري أو تعليمي.\n"
+        "4. أعد صياغة الجمل لتكون عربية سليمة وسهلة القراءة، واستخدم التنسيق (العناوين، النقاط) ليكون النص مرتباً.\n\n"
+        f"النص الأصلي للنشرة:\n{text[:6000]}"
     )
+    
     headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
-    payload = {"model": MODEL, "messages": [{"role": "user", "content": prompt}]}
+    payload = {
+        "model": MODEL, 
+        "messages": [{"role": "user", "content": prompt}]
+    }
     
     try:
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=40)
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=60) # زدت التايم أوت
         if response.status_code == 200:
             return response.json()['choices'][0]['message']['content'].strip()
+        else:
+            print(f"❌ خطأ في الترجمة: {response.status_code}")
+            return None
     except Exception as e:
-        print(f"❌ خطأ في الاتصال بالذكاء الاصطناعي: {e}")
-    return None
+        print(f"❌ فشل الاتصال: {e}")
+        return None
 
 def send_to_telegram(text):
     max_length = 4000
