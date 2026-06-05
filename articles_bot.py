@@ -8,7 +8,7 @@ import re
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY")
-MODEL = "google/gemma-2-27b-it:free" # النموذج المستقر والمجاني
+MODEL = "nvidia/nemotron-3-super-120b-a12b:free" # النموذج المستقر والمجاني
 
 # روابط RSS للنشرات البريدية
 FEEDS = {
