@@ -1,0 +1,30 @@
+name: Send Translated Articles
+
+on:
+  schedule:
+    # 14:00 UTC = 5:00 PM بتوقيت السعودية يومياً
+    - cron: '0 14 * * *'
+  workflow_dispatch: # للسماح لك بتشغيل البوت يدوياً للتجربة
+
+jobs:
+  send-articles:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Articles Bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
+        run: python articles_bot.py
