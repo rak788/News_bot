@@ -18,4 +18,4 @@
 - GitHub Actions (CI/CD & Scheduling)
 - Git / GitHub
 
-## 📁 هيكل المشروع
+##
