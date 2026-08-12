@@ -1,53 +1,58 @@
 # News_bot 🤖📰
 
-نظام أتمتة يجمع أخبار الذكاء الاصطناعي والتقنية يومياً من عدة مصادر، يلخّصها بالعربية باستخدام الذكاء الاصطناعي، ويرسلها تلقائياً عبر تيليجرام — بدون أي تدخل يدوي.
+مجموعة أدوات أتمتة مبنية بـ Python تجمع محتوى تقني من مصادر متعددة (Reddit، نشرات بريدية، مواقع تقنية)، تعالجه بالذكاء الاصطناعي، وترسل النتيجة عبر تيليجرام تلقائياً بجدولة يومية عبر GitHub Actions.
 
 ## 💡 الفكرة
-مشروع طوّرته ذاتياً كخطوة عملية للتعلم في مجال الذكاء الاصطناعي والأتمتة، رغم عدم وجود خلفية تقنية مسبقة.
+مشروع طوّرته ذاتياً كخطوة عملية للتعلم في مجال الذكاء الاصطناعي والأتمتة، رغم عدم وجود خلفية تقنية مسبقة. يحتوي الريبو على أداتين مستقلتين بغرضين مختلفين:
 
-## ⚙️ آلية العمل
-1. **الجمع**: يسحب المحتوى من GitHub Trending وReddit وغيرها 
-2. **التلخيص**: يستخدم نموذج `nvidia/nemotron-3-super-120b-a12b:free` عبر منصة OpenRouter لتلخيص المحتوى بالعربية
-3. **الإرسال**: يرسل الملخص عبر بوت تيليجرام
-4. **الجدولة**: يعمل تلقائياً يومياً عبر GitHub Actions (بدون سيرفر)
+## ⚙️ الأداة 1 — articles_bot.py (مترجم النشرات)
+يتابع نشرتين بريديتين تقنيتين (The Rundown AI, AI Valley عبر kill-the-newsletter.com)، يترجم كل مقال جديد **بالكامل** إلى العربية (بدون تلخيص أو حذف)، ويرسله عبر تيليجرام. يحتفظ بسجل (articles_history.txt) لتفادي إرسال نفس المقال مرتين.
+
+## ⚙️ الأداة 2 — news_bot.py (اداة ارسال الاخبار)
+أداة أشمل تسحب مادة خام واخبار الذكاء الاصطناعي من Reddit (LocalLLaMA, MachineLearning, PromptEngineering, StableDiffusion, Midjourney) ومصادر تقنية أخرى (the-decoder.com, Product Hunt, Maginative)، وتستخدم الذكاء الاصطناعي لتوليد **8 منشورات عن اخر الاخبار والأدوات من هذه المواقع وترسلها للتليجرام مترجمه باللغة العربية  يومياً**:
+- 
+
+النتائج تُرسل منسّقة إلى قناة تيليجرام خاصة، كمسودات جاهزة.
 
 ## 🛠️ التقنيات المستخدمة
-- Python
+- Python (feedparser, requests)
 - Telegram Bot API
-- OpenRouter API
+- OpenRouter API (نموذج nvidia/nemotron-3-super-120b-a12b:free)
 - GitHub Actions (CI/CD & Scheduling)
 - Git / GitHub
 
 ## 📁 هيكل المشروع
 ```
-news_bot.py                        # السكربت الرئيسي — التنسيق والإرسال عبر تيليجرام
-articles_bot.py                    # جلب المقالات/الأخبار من GitHub Trending وReddit
-requirements.txt                   # المكتبات المطلوبة
-.github/workflows/                 # جدولة التشغيل التلقائي اليومي
+news_bot.py             # بوت ارسال الاخبار (Reddit + مصادر تقنية → 8 مسودات محتوى)
+articles_bot.py         # مترجم النشرات البريدية (Rundown AI, AI Valley)
+requirements.txt        # المكتبات المطلوبة
+.github/workflows/      # جدولة التشغيل التلقائي
 README.md
 ```
 
 ## 🔑 المتغيرات المطلوبة (Environment Variables)
-لتشغيل المشروع تحتاج تجهّز المتغيرات التالية:
+| المتغير | الاستخدام | المصدر |
+|---|---|---|
+| BOT_TOKEN | يستخدمه الملفان | من @BotFather على تيليجرام |
+| CHAT_ID | يستخدمه الملفان | معرّف القناة/المحادثة على تيليجرام |
+| OPENROUTER_KEY | يستخدمه الملفان | من openrouter.ai |
 
-| المتغير | المصدر |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | من [@BotFather](https://t.me/BotFather) على تيليجرام |
-| `TELEGRAM_CHAT_ID` | من رابط `getUpdates` بعد إرسال `/start` لبوتك |
-| `OPENROUTER_API_KEY` | من [openrouter.ai](https://openrouter.ai) |
+تُضاف كـ **GitHub Secrets** عبر: Settings → Secrets and variables → Actions
 
-عند التشغيل على GitHub Actions، تُضاف كـ **Secrets** في: `Settings → Secrets and variables → Actions`
+⚠️ **لا تكتب أي قيمة حقيقية (توكن أو Chat ID) مباشرة داخل الكود** — استخدم os.environ.get() دائماً، وإلا تصبح مكشوفة لأي زائر للريبو العام.
 
 ## 🚀 التشغيل محلياً
 ```bash
 pip install -r requirements.txt
 
 # PowerShell
-$env:TELEGRAM_BOT_TOKEN = "your_token"
-$env:TELEGRAM_CHAT_ID = "your_chat_id"
-$env:OPENROUTER_API_KEY = "your_key"
+$env:BOT_TOKEN = "your_token"
+$env:CHAT_ID = "your_chat_id"
+$env:OPENROUTER_KEY = "your_key"
 
 python news_bot.py
+# أو
+python articles_bot.py
 ```
 
 ## 📌 ملاحظة
