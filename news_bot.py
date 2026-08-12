@@ -9,7 +9,7 @@ from datetime import datetime
 # 1. إعدادات البوت والبيانات
 # ========================================================
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-CHAT_ID = "-1003951245443"  # القناة السرية الخاصة بك
+CHAT_ID = os.environ.get("CHAT_ID", "")  # القناة السرية الخاصة بك
 OPENROUTER_KEY = os.environ.get("OPENROUTER_KEY", "")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
